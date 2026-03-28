@@ -1,0 +1,170 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/AppLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sun, Calendar, MapPin, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+interface EventData {
+  id: string;
+  title: string;
+  event_date: string;
+  route: string | null;
+  location: string | null;
+}
+
+interface Participant {
+  user_id: string;
+  display_name: string;
+  distance_km?: number;
+  time_taken_minutes?: number;
+}
+
+export default function EventDetails() {
+  const { id } = useParams<{ id: string }>();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [event, setEvent] = useState<EventData | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !user) navigate("/auth");
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user && id) fetchData();
+  }, [user, id]);
+
+  const fetchData = async () => {
+    setLoadingData(true);
+    const { data: eventData } = await supabase.from("events").select("*").eq("id", id!).single();
+    if (eventData) setEvent(eventData);
+
+    const { data: parts } = await supabase
+      .from("event_participants")
+      .select("user_id")
+      .eq("event_id", id!);
+
+    if (parts) {
+      setHasJoined(parts.some((p) => p.user_id === user!.id));
+
+      const participantDetails = await Promise.all(
+        parts.map(async (p) => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("display_name")
+            .eq("user_id", p.user_id)
+            .single();
+
+          const { data: run } = await supabase
+            .from("runs")
+            .select("distance_km, time_taken_minutes")
+            .eq("user_id", p.user_id)
+            .eq("event_id", id!)
+            .maybeSingle();
+
+          return {
+            user_id: p.user_id,
+            display_name: profile?.display_name || "Runner",
+            distance_km: run?.distance_km,
+            time_taken_minutes: run?.time_taken_minutes,
+          };
+        })
+      );
+      setParticipants(participantDetails);
+    }
+    setLoadingData(false);
+  };
+
+  const joinEvent = async () => {
+    const { error } = await supabase.from("event_participants").insert({ event_id: id!, user_id: user!.id });
+    if (!error) {
+      setHasJoined(true);
+      toast.success("You've joined the event!");
+      fetchData();
+    }
+  };
+
+  const leaveEvent = async () => {
+    await supabase.from("event_participants").delete().eq("event_id", id!).eq("user_id", user!.id);
+    setHasJoined(false);
+    toast.success("You've left the event");
+    fetchData();
+  };
+
+  if (loading || loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Sun className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!event) return <AppLayout><p className="text-muted-foreground">Event not found.</p></AppLayout>;
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground">{event.title}</h1>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(event.event_date).toLocaleDateString()}</span>
+            {event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {event.location}</span>}
+          </div>
+          {event.route && <p className="text-sm text-muted-foreground mt-1">Route: {event.route}</p>}
+        </div>
+
+        <div className="flex gap-2">
+          {hasJoined ? (
+            <>
+              <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
+              <Link to={`/add-run?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Log Run for This Event</Button></Link>
+            </>
+          ) : (
+            <Button onClick={joinEvent}>Join Event</Button>
+          )}
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle>Participants ({participants.length})</CardTitle></CardHeader>
+          <CardContent>
+            {participants.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No participants yet. Be the first to join!</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Distance</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Pace</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {participants.map((p) => (
+                    <TableRow key={p.user_id}>
+                      <TableCell className="font-medium">{p.display_name}</TableCell>
+                      <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
+                      <TableCell>{p.time_taken_minutes ? `${p.time_taken_minutes} min` : "—"}</TableCell>
+                      <TableCell>
+                        {p.distance_km && p.time_taken_minutes
+                          ? `${(p.time_taken_minutes / p.distance_km).toFixed(1)} min/km`
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}

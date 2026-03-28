@@ -1,75 +1,53 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { LogRunForm } from "@/components/LogRunForm";
-import { StatsCards } from "@/components/StatsCards";
-import { RunHistory } from "@/components/RunHistory";
+import { AppLayout } from "@/components/AppLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { Sun, LogOut } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Sun, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 interface Run {
   id: string;
   distance_km: number;
   run_date: string;
+  time_taken_minutes: number | null;
   notes: string | null;
-  created_at: string;
-}
-
-interface Profile {
-  display_name: string;
 }
 
 export default function Dashboard() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
+    if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user]);
 
   const fetchData = async () => {
     setLoadingData(true);
     const [runsRes, profileRes] = await Promise.all([
-      supabase.from("runs").select("*").order("run_date", { ascending: false }),
-      supabase.from("profiles").select("display_name").eq("user_id", user!.id).single(),
+      supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
+      supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
     ]);
     if (runsRes.data) setRuns(runsRes.data);
     if (profileRes.data) setProfile(profileRes.data);
     setLoadingData(false);
   };
 
-  const handleLogRun = async (distance: number, date: string, notes: string) => {
-    const { error } = await supabase.from("runs").insert({
-      user_id: user!.id,
-      distance_km: distance,
-      run_date: date,
-      notes: notes || null,
-    });
-    if (!error) fetchData();
-    return error;
-  };
-
-  const handleDeleteRun = async (id: string) => {
-    await supabase.from("runs").delete().eq("id", id);
-    fetchData();
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
+  const toggleLeaderboard = async (checked: boolean) => {
+    await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);
+    setProfile((p) => p ? { ...p, show_on_leaderboard: checked } : p);
+    toast.success(checked ? "You're now on the leaderboard!" : "Removed from leaderboard");
   };
 
   if (loading || loadingData) {
@@ -80,38 +58,116 @@ export default function Dashboard() {
     );
   }
 
+  const latestRun = runs[0] || null;
+  const previousRun = runs[1] || null;
+  const fastestPace = runs.reduce((best, run) => {
+    if (run.time_taken_minutes && run.distance_km > 0) {
+      const pace = run.time_taken_minutes / run.distance_km;
+      return pace < best ? pace : best;
+    }
+    return best;
+  }, Infinity);
+
+  const totalKm = runs.reduce((sum, r) => sum + r.distance_km, 0);
+
   const greeting = getGreeting(profile?.display_name || "Runner");
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sun className="w-6 h-6 text-primary" />
-            <span className="font-display font-bold text-lg text-foreground">Sunday Run Club</span>
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">{greeting}</h1>
+            <p className="text-muted-foreground text-sm">Every step counts 💪</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign out
-          </Button>
+          <Link to="/add-run">
+            <Button><Plus className="w-4 h-4 mr-1" /> Log Run</Button>
+          </Link>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="text-3xl font-display font-bold text-foreground">{greeting}</h1>
-          <p className="text-muted-foreground mt-1">Every step counts. Keep going! 💪</p>
-        </motion.div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Total Runs</p>
+              <p className="text-2xl font-bold text-foreground">{runs.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Total Distance</p>
+              <p className="text-2xl font-bold text-foreground">{totalKm.toFixed(1)} km</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Fastest Pace</p>
+              <p className="text-2xl font-bold text-foreground">
+                {fastestPace === Infinity ? "—" : `${fastestPace.toFixed(1)} min/km`}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Latest Distance</p>
+              <p className="text-2xl font-bold text-foreground">
+                {latestRun ? `${latestRun.distance_km.toFixed(1)} km` : "—"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <StatsCards runs={runs} />
-        <LogRunForm onSubmit={handleLogRun} />
-        <RunHistory runs={runs} onDelete={handleDeleteRun} />
-      </main>
-    </div>
+        {/* Latest vs Previous */}
+        {latestRun && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Latest vs Previous Run</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground mb-1">Latest ({new Date(latestRun.run_date).toLocaleDateString()})</p>
+                  <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(1)} km</p>
+                  {latestRun.time_taken_minutes && (
+                    <p className="text-muted-foreground">{latestRun.time_taken_minutes} min ({(latestRun.time_taken_minutes / latestRun.distance_km).toFixed(1)} min/km)</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">
+                    {previousRun ? `Previous (${new Date(previousRun.run_date).toLocaleDateString()})` : "Previous"}
+                  </p>
+                  {previousRun ? (
+                    <>
+                      <p className="font-bold text-foreground">{previousRun.distance_km.toFixed(1)} km</p>
+                      {previousRun.time_taken_minutes && (
+                        <p className="text-muted-foreground">{previousRun.time_taken_minutes} min ({(previousRun.time_taken_minutes / previousRun.distance_km).toFixed(1)} min/km)</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">No previous run yet</p>
+                  )}
+                </div>
+              </div>
+              {latestRun && previousRun && (
+                <p className="mt-3 text-sm font-medium text-foreground">
+                  Distance change: {(latestRun.distance_km - previousRun.distance_km) > 0 ? "+" : ""}
+                  {(latestRun.distance_km - previousRun.distance_km).toFixed(1)} km
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Leaderboard toggle */}
+        <Card>
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Show on Leaderboard</Label>
+              <p className="text-xs text-muted-foreground">Share your stats publicly</p>
+            </div>
+            <Switch checked={profile?.show_on_leaderboard ?? false} onCheckedChange={toggleLeaderboard} />
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
 }
 
