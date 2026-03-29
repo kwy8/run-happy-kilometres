@@ -129,14 +129,6 @@ export default function AddRun() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Photo (optional)</Label>
-              <Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it feel?" maxLength={500} />
-            </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Log Run"}</Button>
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
