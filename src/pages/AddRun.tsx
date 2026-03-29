@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sun } from "lucide-react";
 import { toast } from "sonner";
@@ -29,7 +28,6 @@ export default function AddRun() {
   const [timeTaken, setTimeTaken] = useState("");
   const [notes, setNotes] = useState("");
   const [eventId, setEventId] = useState(preselectedEvent);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,17 +52,6 @@ export default function AddRun() {
     }
 
     setSubmitting(true);
-    let photoUrl: string | null = null;
-
-    if (photo && user) {
-      const ext = photo.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("run-photos").upload(path, photo);
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from("run-photos").getPublicUrl(path);
-        photoUrl = urlData.publicUrl;
-      }
-    }
 
     const minutes = timeTaken ? parseFloat(timeTaken) : null;
 
@@ -74,7 +61,7 @@ export default function AddRun() {
       run_date: date,
       time_taken_minutes: minutes,
       notes: notes || null,
-      photo_url: photoUrl,
+      photo_url: null,
       event_id: eventId || null,
     });
 
@@ -128,14 +115,6 @@ export default function AddRun() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Photo (optional)</Label>
-              <Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it feel?" maxLength={500} />
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Log Run"}</Button>
