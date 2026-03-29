@@ -52,17 +52,6 @@ export default function AddRun() {
     }
 
     setSubmitting(true);
-    let photoUrl: string | null = null;
-
-    if (photo && user) {
-      const ext = photo.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("run-photos").upload(path, photo);
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from("run-photos").getPublicUrl(path);
-        photoUrl = urlData.publicUrl;
-      }
-    }
 
     const minutes = timeTaken ? parseFloat(timeTaken) : null;
 
@@ -72,7 +61,7 @@ export default function AddRun() {
       run_date: date,
       time_taken_minutes: minutes,
       notes: notes || null,
-      photo_url: photoUrl,
+      photo_url: null,
       event_id: eventId || null,
     });
 
