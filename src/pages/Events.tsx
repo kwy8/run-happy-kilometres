@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sun, Calendar, MapPin, Plus } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Event {
   id: string;
@@ -21,6 +22,7 @@ export default function Events() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -52,6 +54,36 @@ export default function Events() {
     setLoadingData(false);
   };
 
+  const deleteEvent = async (eventId: string, title: string) => {
+    const confirmed = window.confirm(`Delete "${title}"? This will remove joins for this event and detach any linked runs.`);
+    if (!confirmed) return;
+
+    setDeletingEventId(eventId);
+
+    const [{ error: participantsError }, { error: runsError }] = await Promise.all([
+      supabase.from("event_participants").delete().eq("event_id", eventId),
+      supabase.from("runs").update({ event_id: null }).eq("event_id", eventId),
+    ]);
+
+    if (participantsError || runsError) {
+      toast.error("Failed to prepare event deletion");
+      setDeletingEventId(null);
+      return;
+    }
+
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
+
+    if (error) {
+      toast.error("Failed to delete event");
+      setDeletingEventId(null);
+      return;
+    }
+
+    toast.success("Event deleted");
+    setDeletingEventId(null);
+    fetchEvents();
+  };
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -81,13 +113,13 @@ export default function Events() {
         ) : (
           <div className="space-y-3">
             {events.map((event) => (
-              <Link key={event.id} to={`/events/${event.id}`}>
-                <Card className="hover:bg-muted/50 transition-colors cursor-pointer mb-3">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
+              <Card key={event.id} className="mb-3 transition-colors hover:bg-muted/50">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <Link to={`/events/${event.id}`} className="min-w-0 flex-1">
                       <div>
                         <h3 className="font-bold text-foreground">{event.title}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(event.event_date).toLocaleDateString()}
@@ -99,16 +131,31 @@ export default function Events() {
                             </span>
                           )}
                         </div>
-                        {event.route && <p className="text-xs text-muted-foreground mt-1">Route: {event.route}</p>}
+                        {event.route && <p className="mt-1 text-xs text-muted-foreground">Route: {event.route}</p>}
                       </div>
+                    </Link>
+
+                    <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-lg font-bold text-foreground">{event.participant_count}</p>
                         <p className="text-xs text-muted-foreground">joined</p>
                       </div>
+
+                      {isAdmin && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={deletingEventId === event.id}
+                          onClick={() => deleteEvent(event.id, event.title)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
