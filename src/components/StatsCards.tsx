@@ -41,7 +41,7 @@ export function StatsCards({ runs }: StatsCardsProps) {
       icon: Flame,
       label: "Current Streak",
       value: `${stats.streak} week${stats.streak !== 1 ? "s" : ""}`,
-      sub: stats.streak > 0 ? "Keep the streak alive! 🔥" : "Start your streak this Sunday!",
+      sub: stats.streak > 0 ? "Keep the streak alive! 🔥" : "Start your streak this week!",
     },
     {
       icon: Calendar,

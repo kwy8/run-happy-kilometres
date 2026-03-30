@@ -24,7 +24,7 @@ export default function Auth() {
     try {
       if (isSignUp) {
         await signUp(email, password, displayName);
-        toast.success("Welcome to the club! Check your email to confirm your account. 🎉");
+        toast.success("Welcome to Random Run Club! You're all set. 🎉");
       } else {
         await signIn(email, password);
         toast.success("Welcome back, runner! 🏃");
@@ -61,9 +61,9 @@ export default function Auth() {
             <h1 className="text-2xl font-display font-bold text-foreground">
               {isSignUp ? "Join the Club" : "Welcome Back"}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isSignUp ? "Every journey starts with a single step" : "Ready for another Sunday?"}
-            </p>
+              <p className="text-muted-foreground text-sm mt-1">
+                {isSignUp ? "Every journey starts with a single step" : "Ready for your next run?"}
+              </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
