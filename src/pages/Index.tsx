@@ -26,12 +26,12 @@ export default function Index() {
             transition={{ duration: 0.6 }}
           >
             <Sun className="w-14 h-14 text-primary mx-auto mb-6 animate-bounce-gentle" />
-            <h1 className="text-4xl md:text-6xl font-display font-extrabold text-foreground leading-tight">
-              Sunday <span className="text-gradient-sunrise">Run Club</span>
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-lg mx-auto">
-              Track your Sunday runs, celebrate your progress, and keep showing up. No pressure, just joy.
-            </p>
+              <h1 className="text-4xl md:text-6xl font-display font-extrabold text-foreground leading-tight">
+                Random <span className="text-gradient-sunrise">Run Club</span>
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-lg mx-auto">
+                Track your runs, celebrate your progress, and keep showing up. No pressure, just joy.
+              </p>
             <div className="mt-8 flex gap-3 justify-center">
               <Button size="lg" onClick={() => navigate("/auth")} className="text-base px-8">
                 Get Started <ArrowRight className="w-4 h-4 ml-2" />
@@ -57,7 +57,7 @@ export default function Index() {
             },
             {
               icon: Users,
-              title: "Sunday Ritual",
+              title: "Weekly Ritual",
               desc: "Build a weekly habit that makes you feel good. Show up for yourself.",
             },
           ].map((feature, i) => (
@@ -80,7 +80,7 @@ export default function Index() {
 
       {/* Footer */}
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        <p>Made with ☀️ for Sunday runners everywhere</p>
+        <p>Made with ☀️ for runners everywhere</p>
       </footer>
     </div>
   );
