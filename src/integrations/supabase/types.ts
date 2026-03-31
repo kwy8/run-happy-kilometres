@@ -48,8 +48,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           event_date: string
+          gpx_file_url: string | null
           id: string
-          komoot_url: string | null
           location: string | null
           route: string | null
           title: string
@@ -58,8 +58,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_date: string
+          gpx_file_url?: string | null
           id?: string
-          komoot_url?: string | null
           location?: string | null
           route?: string | null
           title: string
@@ -68,8 +68,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_date?: string
+          gpx_file_url?: string | null
           id?: string
-          komoot_url?: string | null
           location?: string | null
           route?: string | null
           title?: string
