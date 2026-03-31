@@ -28,13 +28,20 @@ export default function CreateEvent() {
     e.preventDefault();
     if (!title.trim() || !eventDate) { toast.error("Title and date are required"); return; }
     setSubmitting(true);
+    const trimmedUrl = komootUrl.trim();
+    if (trimmedUrl && !trimmedUrl.match(/^https:\/\/(www\.)?komoot\.(com|de)\/(tour|collection)\/\d+/i)) {
+      toast.error("Please enter a valid Komoot tour URL (e.g. https://www.komoot.com/tour/123456)");
+      setSubmitting(false);
+      return;
+    }
     const { error } = await supabase.from("events").insert({
       title: title.trim(),
       event_date: eventDate,
       route: route.trim() || null,
       location: location.trim() || null,
+      komoot_url: trimmedUrl || null,
       created_by: user!.id,
-    });
+    } as any);
     if (error) {
       toast.error("Failed to create event");
     } else {
