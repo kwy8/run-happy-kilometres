@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sun, Calendar, MapPin, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { GpxMap } from "@/components/GpxMap";
 
 interface EventData {
   id: string;
@@ -15,7 +16,7 @@ interface EventData {
   event_date: string;
   route: string | null;
   location: string | null;
-  komoot_url: string | null;
+  gpx_file_url: string | null;
 }
 
 interface Participant {
@@ -45,7 +46,7 @@ export default function EventDetails() {
   const fetchData = async () => {
     setLoadingData(true);
     const { data: eventData } = await supabase.from("events").select("*").eq("id", id!).single();
-    if (eventData) setEvent(eventData);
+    if (eventData) setEvent(eventData as unknown as EventData);
 
     const { data: parts } = await supabase
       .from("event_participants")
@@ -121,32 +122,14 @@ export default function EventDetails() {
           {event.route && <p className="text-sm text-muted-foreground mt-1">Route: {event.route}</p>}
         </div>
 
-        {event.komoot_url && (() => {
-          const match = event.komoot_url.match(/komoot\.(com|de)\/(tour|collection)\/(\d+)/);
-          const tourId = match ? match[3] : null;
-          const tourType = match ? match[2] : 'tour';
-          return tourId ? (
-            <Card>
-              <CardHeader><CardTitle>Route Map</CardTitle></CardHeader>
-              <CardContent>
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <iframe
-                    src={`https://www.komoot.com/${tourType}/${tourId}/embed?share_token=&profile=1&gallery=1`}
-                    width="100%"
-                    height="100%"
-                    frameBorder="0"
-                    scrolling="no"
-                    title="Komoot Route"
-                    className="w-full h-full"
-                  />
-                </div>
-                <a href={event.komoot_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline mt-2 inline-block">
-                  View on Komoot ↗
-                </a>
-              </CardContent>
-            </Card>
-          ) : null;
-        })()}
+        {event.gpx_file_url && (
+          <Card>
+            <CardHeader><CardTitle>Route Map</CardTitle></CardHeader>
+            <CardContent>
+              <GpxMap gpxUrl={event.gpx_file_url} />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex gap-2">
           {hasJoined ? (
