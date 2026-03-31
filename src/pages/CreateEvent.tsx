@@ -17,6 +17,7 @@ export default function CreateEvent() {
   const [eventDate, setEventDate] = useState("");
   const [route, setRoute] = useState("");
   const [location, setLocation] = useState("");
+  const [komootUrl, setKomootUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -27,13 +28,20 @@ export default function CreateEvent() {
     e.preventDefault();
     if (!title.trim() || !eventDate) { toast.error("Title and date are required"); return; }
     setSubmitting(true);
+    const trimmedUrl = komootUrl.trim();
+    if (trimmedUrl && !trimmedUrl.match(/^https:\/\/(www\.)?komoot\.(com|de)\/(tour|collection)\/\d+/i)) {
+      toast.error("Please enter a valid Komoot tour URL (e.g. https://www.komoot.com/tour/123456)");
+      setSubmitting(false);
+      return;
+    }
     const { error } = await supabase.from("events").insert({
       title: title.trim(),
       event_date: eventDate,
       route: route.trim() || null,
       location: location.trim() || null,
+      komoot_url: trimmedUrl || null,
       created_by: user!.id,
-    });
+    } as any);
     if (error) {
       toast.error("Failed to create event");
     } else {
@@ -61,6 +69,7 @@ export default function CreateEvent() {
             <div><Label>Date *</Label><Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required /></div>
             <div><Label>Route</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g. Park loop 5km" /></div>
             <div><Label>Meet-up Point</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Central Park" /></div>
+            <div><Label>Komoot Route URL</Label><Input value={komootUrl} onChange={(e) => setKomootUrl(e.target.value)} placeholder="https://www.komoot.com/tour/123456" /></div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Creating..." : "Create Event"}</Button>
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
