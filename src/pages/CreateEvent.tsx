@@ -17,6 +17,7 @@ export default function CreateEvent() {
   const [eventDate, setEventDate] = useState("");
   const [route, setRoute] = useState("");
   const [location, setLocation] = useState("");
+  const [komootUrl, setKomootUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
