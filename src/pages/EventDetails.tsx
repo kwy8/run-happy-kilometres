@@ -15,6 +15,7 @@ interface EventData {
   event_date: string;
   route: string | null;
   location: string | null;
+  komoot_url: string | null;
 }
 
 interface Participant {
