@@ -49,6 +49,7 @@ export type Database = {
           created_by: string | null
           event_date: string
           id: string
+          komoot_url: string | null
           location: string | null
           route: string | null
           title: string
@@ -58,6 +59,7 @@ export type Database = {
           created_by?: string | null
           event_date: string
           id?: string
+          komoot_url?: string | null
           location?: string | null
           route?: string | null
           title: string
@@ -67,6 +69,7 @@ export type Database = {
           created_by?: string | null
           event_date?: string
           id?: string
+          komoot_url?: string | null
           location?: string | null
           route?: string | null
           title?: string
