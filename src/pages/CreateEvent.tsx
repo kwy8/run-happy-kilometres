@@ -69,6 +69,7 @@ export default function CreateEvent() {
             <div><Label>Date *</Label><Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required /></div>
             <div><Label>Route</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g. Park loop 5km" /></div>
             <div><Label>Meet-up Point</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Central Park" /></div>
+            <div><Label>Komoot Route URL</Label><Input value={komootUrl} onChange={(e) => setKomootUrl(e.target.value)} placeholder="https://www.komoot.com/tour/123456" /></div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Creating..." : "Create Event"}</Button>
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>

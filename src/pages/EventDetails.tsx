@@ -121,6 +121,33 @@ export default function EventDetails() {
           {event.route && <p className="text-sm text-muted-foreground mt-1">Route: {event.route}</p>}
         </div>
 
+        {event.komoot_url && (() => {
+          const match = event.komoot_url.match(/komoot\.(com|de)\/(tour|collection)\/(\d+)/);
+          const tourId = match ? match[3] : null;
+          const tourType = match ? match[2] : 'tour';
+          return tourId ? (
+            <Card>
+              <CardHeader><CardTitle>Route Map</CardTitle></CardHeader>
+              <CardContent>
+                <div className="aspect-video rounded-lg overflow-hidden">
+                  <iframe
+                    src={`https://www.komoot.com/${tourType}/${tourId}/embed?share_token=&profile=1&gallery=1`}
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="no"
+                    title="Komoot Route"
+                    className="w-full h-full"
+                  />
+                </div>
+                <a href={event.komoot_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline mt-2 inline-block">
+                  View on Komoot ↗
+                </a>
+              </CardContent>
+            </Card>
+          ) : null;
+        })()}
+
         <div className="flex gap-2">
           {hasJoined ? (
             <>
