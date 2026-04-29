@@ -36,12 +36,20 @@ export default function AddRun() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !preselectedEvent) {
       supabase.from("events").select("id, title, event_date").order("event_date", { ascending: false }).then(({ data }) => {
         if (data) setEvents(data);
       });
     }
-  }, [user]);
+  }, [user, preselectedEvent]);
+
+  useEffect(() => {
+    if (preselectedEvent) {
+      supabase.from("events").select("event_date").eq("id", preselectedEvent).maybeSingle().then(({ data }) => {
+        if (data?.event_date) setDate(data.event_date);
+      });
+    }
+  }, [preselectedEvent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
