@@ -51,6 +51,7 @@ export type Database = {
           gpx_file_url: string | null
           id: string
           location: string | null
+          meetup_time: string | null
           route: string | null
           title: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           location?: string | null
+          meetup_time?: string | null
           route?: string | null
           title: string
         }
@@ -71,6 +73,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           location?: string | null
+          meetup_time?: string | null
           route?: string | null
           title?: string
         }

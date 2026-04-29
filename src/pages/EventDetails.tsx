@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, Calendar, MapPin, Plus } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 
@@ -14,6 +14,7 @@ interface EventData {
   id: string;
   title: string;
   event_date: string;
+  meetup_time: string | null;
   route: string | null;
   location: string | null;
   gpx_file_url: string | null;
@@ -117,6 +118,7 @@ export default function EventDetails() {
           <h1 className="text-2xl font-display font-bold text-foreground">{event.title}</h1>
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(event.event_date).toLocaleDateString()}</span>
+            {event.meetup_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {event.meetup_time.slice(0, 5)}</span>}
             {event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {event.location}</span>}
           </div>
           {event.route && <p className="text-sm text-muted-foreground mt-1">Route: {event.route}</p>}

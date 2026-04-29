@@ -15,6 +15,7 @@ export default function CreateEvent() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [meetupTime, setMeetupTime] = useState("");
   const [route, setRoute] = useState("");
   const [location, setLocation] = useState("");
   const [gpxFile, setGpxFile] = useState<File | null>(null);
@@ -61,6 +62,7 @@ export default function CreateEvent() {
     const { error } = await supabase.from("events").insert({
       title: title.trim(),
       event_date: eventDate,
+      meetup_time: meetupTime || null,
       route: route.trim() || null,
       location: location.trim() || null,
       gpx_file_url: gpxFileUrl,
@@ -92,6 +94,7 @@ export default function CreateEvent() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sunday Morning Run" required /></div>
             <div><Label>Date *</Label><Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required /></div>
+            <div><Label>Meet-up Time</Label><Input type="time" value={meetupTime} onChange={(e) => setMeetupTime(e.target.value)} /></div>
             <div><Label>Route</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g. Park loop 5km" /></div>
             <div><Label>Meet-up Point</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Central Park" /></div>
             <div>
