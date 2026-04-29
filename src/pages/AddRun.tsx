@@ -102,10 +102,12 @@ export default function AddRun() {
               <Label>Distance (km) *</Label>
               <Input type="number" step="0.01" min="0.01" max="200" value={distance} onChange={(e) => setDistance(e.target.value)} required />
             </div>
-            <div>
-              <Label>Date *</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </div>
+            {!preselectedEvent && (
+              <div>
+                <Label>Date *</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              </div>
+            )}
             <div>
               <Label>Time Taken (minutes)</Label>
               <Input type="number" step="0.1" min="0" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} placeholder="e.g. 30" />
