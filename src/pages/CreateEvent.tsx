@@ -15,6 +15,7 @@ export default function CreateEvent() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [meetupTime, setMeetupTime] = useState("");
   const [route, setRoute] = useState("");
   const [location, setLocation] = useState("");
   const [gpxFile, setGpxFile] = useState<File | null>(null);
