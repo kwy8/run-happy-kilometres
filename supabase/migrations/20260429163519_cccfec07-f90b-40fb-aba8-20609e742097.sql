@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN meetup_time time;
