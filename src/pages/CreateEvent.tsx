@@ -94,6 +94,7 @@ export default function CreateEvent() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sunday Morning Run" required /></div>
             <div><Label>Date *</Label><Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required /></div>
+            <div><Label>Meet-up Time</Label><Input type="time" value={meetupTime} onChange={(e) => setMeetupTime(e.target.value)} /></div>
             <div><Label>Route</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g. Park loop 5km" /></div>
             <div><Label>Meet-up Point</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Central Park" /></div>
             <div>
