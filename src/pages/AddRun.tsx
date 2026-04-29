@@ -112,20 +112,22 @@ export default function AddRun() {
               <Label>Time Taken (minutes)</Label>
               <Input type="number" step="0.1" min="0" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} placeholder="e.g. 30" />
             </div>
-            <div>
-              <Label>Event (optional)</Label>
-              <Select value={eventId} onValueChange={setEventId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="No event" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No event</SelectItem>
-                  {events.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>{ev.title} — {new Date(ev.event_date).toLocaleDateString()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!preselectedEvent && (
+              <div>
+                <Label>Event (optional)</Label>
+                <Select value={eventId} onValueChange={setEventId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No event</SelectItem>
+                    {events.map((ev) => (
+                      <SelectItem key={ev.id} value={ev.id}>{ev.title} — {new Date(ev.event_date).toLocaleDateString()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Log Run"}</Button>
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
