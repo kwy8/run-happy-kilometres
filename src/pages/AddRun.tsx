@@ -36,12 +36,20 @@ export default function AddRun() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !preselectedEvent) {
       supabase.from("events").select("id, title, event_date").order("event_date", { ascending: false }).then(({ data }) => {
         if (data) setEvents(data);
       });
     }
-  }, [user]);
+  }, [user, preselectedEvent]);
+
+  useEffect(() => {
+    if (preselectedEvent) {
+      supabase.from("events").select("event_date").eq("id", preselectedEvent).maybeSingle().then(({ data }) => {
+        if (data?.event_date) setDate(data.event_date);
+      });
+    }
+  }, [preselectedEvent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,28 +102,32 @@ export default function AddRun() {
               <Label>Distance (km) *</Label>
               <Input type="number" step="0.01" min="0.01" max="200" value={distance} onChange={(e) => setDistance(e.target.value)} required />
             </div>
-            <div>
-              <Label>Date *</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </div>
+            {!preselectedEvent && (
+              <div>
+                <Label>Date *</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              </div>
+            )}
             <div>
               <Label>Time Taken (minutes)</Label>
               <Input type="number" step="0.1" min="0" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} placeholder="e.g. 30" />
             </div>
-            <div>
-              <Label>Event (optional)</Label>
-              <Select value={eventId} onValueChange={setEventId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="No event" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No event</SelectItem>
-                  {events.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>{ev.title} — {new Date(ev.event_date).toLocaleDateString()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!preselectedEvent && (
+              <div>
+                <Label>Event (optional)</Label>
+                <Select value={eventId} onValueChange={setEventId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No event</SelectItem>
+                    {events.map((ev) => (
+                      <SelectItem key={ev.id} value={ev.id}>{ev.title} — {new Date(ev.event_date).toLocaleDateString()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Log Run"}</Button>
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
