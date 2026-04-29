@@ -14,6 +14,7 @@ interface EventData {
   id: string;
   title: string;
   event_date: string;
+  meetup_time: string | null;
   route: string | null;
   location: string | null;
   gpx_file_url: string | null;
