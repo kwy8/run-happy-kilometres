@@ -62,6 +62,7 @@ export default function CreateEvent() {
     const { error } = await supabase.from("events").insert({
       title: title.trim(),
       event_date: eventDate,
+      meetup_time: meetupTime || null,
       route: route.trim() || null,
       location: location.trim() || null,
       gpx_file_url: gpxFileUrl,
