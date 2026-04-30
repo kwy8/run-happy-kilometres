@@ -132,6 +132,53 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        {/* Next Upcoming Event */}
+        {upcomingEvent && (
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary font-semibold">Next Run</p>
+                  <CardTitle className="text-lg mt-1">
+                    <Link to={`/events/${upcomingEvent.id}`} className="hover:underline">
+                      {upcomingEvent.title}
+                    </Link>
+                  </CardTitle>
+                </div>
+                {hasJoined ? (
+                  <Button variant="outline" size="sm" disabled>
+                    <Check className="w-4 h-4 mr-1" /> Joined
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={joinEvent} disabled={joining}>
+                    {joining ? "Joining..." : "Join"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(upcomingEvent.event_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                </span>
+                {upcomingEvent.meetup_time && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {upcomingEvent.meetup_time.slice(0, 5)}
+                  </span>
+                )}
+                {upcomingEvent.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {upcomingEvent.location}
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
