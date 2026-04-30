@@ -31,6 +31,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
+  const [upcomingEvent, setUpcomingEvent] = useState<UpcomingEvent | null>(null);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -43,13 +46,49 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const [runsRes, profileRes] = await Promise.all([
+    const today = new Date().toISOString().split("T")[0];
+    const [runsRes, profileRes, eventRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
+      supabase
+        .from("events")
+        .select("id, title, event_date, meetup_time, location")
+        .gte("event_date", today)
+        .order("event_date", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
     ]);
     if (runsRes.data) setRuns(runsRes.data);
     if (profileRes.data) setProfile(profileRes.data);
+    if (eventRes.data) {
+      setUpcomingEvent(eventRes.data);
+      const { data: joinData } = await supabase
+        .from("event_participants")
+        .select("id")
+        .eq("event_id", eventRes.data.id)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      setHasJoined(!!joinData);
+    } else {
+      setUpcomingEvent(null);
+      setHasJoined(false);
+    }
     setLoadingData(false);
+  };
+
+  const joinEvent = async () => {
+    if (!upcomingEvent) return;
+    setJoining(true);
+    const { error } = await supabase
+      .from("event_participants")
+      .insert({ event_id: upcomingEvent.id, user_id: user!.id });
+    setJoining(false);
+    if (error) {
+      toast.error("Failed to join event");
+      return;
+    }
+    setHasJoined(true);
+    toast.success("You're in! See you there 🌅");
   };
 
   const toggleLeaderboard = async (checked: boolean) => {
