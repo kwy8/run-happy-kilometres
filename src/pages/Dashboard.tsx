@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface Run {
@@ -16,6 +16,14 @@ interface Run {
   run_date: string;
   time_taken_minutes: number | null;
   notes: string | null;
+}
+
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  event_date: string;
+  meetup_time: string | null;
+  location: string | null;
 }
 
 export default function Dashboard() {
