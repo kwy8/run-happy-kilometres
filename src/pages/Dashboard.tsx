@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface Run {
@@ -18,11 +18,22 @@ interface Run {
   notes: string | null;
 }
 
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  event_date: string;
+  meetup_time: string | null;
+  location: string | null;
+}
+
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
+  const [upcomingEvent, setUpcomingEvent] = useState<UpcomingEvent | null>(null);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -35,13 +46,49 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const [runsRes, profileRes] = await Promise.all([
+    const today = new Date().toISOString().split("T")[0];
+    const [runsRes, profileRes, eventRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
+      supabase
+        .from("events")
+        .select("id, title, event_date, meetup_time, location")
+        .gte("event_date", today)
+        .order("event_date", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
     ]);
     if (runsRes.data) setRuns(runsRes.data);
     if (profileRes.data) setProfile(profileRes.data);
+    if (eventRes.data) {
+      setUpcomingEvent(eventRes.data);
+      const { data: joinData } = await supabase
+        .from("event_participants")
+        .select("id")
+        .eq("event_id", eventRes.data.id)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      setHasJoined(!!joinData);
+    } else {
+      setUpcomingEvent(null);
+      setHasJoined(false);
+    }
     setLoadingData(false);
+  };
+
+  const joinEvent = async () => {
+    if (!upcomingEvent) return;
+    setJoining(true);
+    const { error } = await supabase
+      .from("event_participants")
+      .insert({ event_id: upcomingEvent.id, user_id: user!.id });
+    setJoining(false);
+    if (error) {
+      toast.error("Failed to join event");
+      return;
+    }
+    setHasJoined(true);
+    toast.success("You're in! See you there 🌅");
   };
 
   const toggleLeaderboard = async (checked: boolean) => {
@@ -84,6 +131,53 @@ export default function Dashboard() {
             <Button><Plus className="w-4 h-4 mr-1" /> Log Run</Button>
           </Link>
         </div>
+
+        {/* Next Upcoming Event */}
+        {upcomingEvent && (
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary font-semibold">Next Run</p>
+                  <CardTitle className="text-lg mt-1">
+                    <Link to={`/events/${upcomingEvent.id}`} className="hover:underline">
+                      {upcomingEvent.title}
+                    </Link>
+                  </CardTitle>
+                </div>
+                {hasJoined ? (
+                  <Button variant="outline" size="sm" disabled>
+                    <Check className="w-4 h-4 mr-1" /> Joined
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={joinEvent} disabled={joining}>
+                    {joining ? "Joining..." : "Join"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(upcomingEvent.event_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                </span>
+                {upcomingEvent.meetup_time && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {upcomingEvent.meetup_time.slice(0, 5)}
+                  </span>
+                )}
+                {upcomingEvent.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {upcomingEvent.location}
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
