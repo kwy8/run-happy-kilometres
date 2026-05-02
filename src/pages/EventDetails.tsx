@@ -46,52 +46,73 @@ export default function EventDetails() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const { data: eventData } = await supabase.from("events").select("*").eq("id", id!).single();
-    if (eventData) setEvent(eventData as unknown as EventData);
+    const { data: eventData, error: eventErr } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", id!)
+      .maybeSingle();
+    if (eventErr || !eventData) {
+      setEvent(null);
+      setLoadingData(false);
+      return;
+    }
+    setEvent(eventData as unknown as EventData);
 
     const { data: parts } = await supabase
       .from("event_participants")
       .select("user_id")
       .eq("event_id", id!);
 
-    if (parts) {
+    if (parts && parts.length > 0) {
       setHasJoined(parts.some((p) => p.user_id === user!.id));
 
-      const participantDetails = await Promise.all(
-        parts.map(async (p) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("display_name")
-            .eq("user_id", p.user_id)
-            .single();
+      const userIds = parts.map((p) => p.user_id);
+      const [{ data: profilesData }, { data: runsData }] = await Promise.all([
+        supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
+        supabase
+          .from("runs")
+          .select("user_id, distance_km, time_taken_minutes")
+          .eq("event_id", id!)
+          .in("user_id", userIds),
+      ]);
 
-          const { data: run } = await supabase
-            .from("runs")
-            .select("distance_km, time_taken_minutes")
-            .eq("user_id", p.user_id)
-            .eq("event_id", id!)
-            .maybeSingle();
+      const profileMap = new Map((profilesData || []).map((p) => [p.user_id, p.display_name]));
+      // If a user has multiple runs for the event, pick the longest distance
+      const runMap = new Map<string, { distance_km: number; time_taken_minutes: number | null }>();
+      (runsData || []).forEach((r) => {
+        const existing = runMap.get(r.user_id);
+        if (!existing || r.distance_km > existing.distance_km) {
+          runMap.set(r.user_id, { distance_km: r.distance_km, time_taken_minutes: r.time_taken_minutes });
+        }
+      });
 
-          return {
-            user_id: p.user_id,
-            display_name: profile?.display_name || "Runner",
-            distance_km: run?.distance_km,
-            time_taken_minutes: run?.time_taken_minutes,
-          };
-        })
+      setParticipants(
+        parts.map((p) => ({
+          user_id: p.user_id,
+          display_name: profileMap.get(p.user_id) || "Runner",
+          distance_km: runMap.get(p.user_id)?.distance_km,
+          time_taken_minutes: runMap.get(p.user_id)?.time_taken_minutes ?? undefined,
+        }))
       );
-      setParticipants(participantDetails);
+    } else {
+      setParticipants([]);
+      setHasJoined(false);
     }
     setLoadingData(false);
   };
 
   const joinEvent = async () => {
+    if (hasJoined) return;
     const { error } = await supabase.from("event_participants").insert({ event_id: id!, user_id: user!.id });
-    if (!error) {
-      setHasJoined(true);
-      toast.success("You've joined the event!");
+    if (error) {
+      // Likely already joined from another tab — refresh state
+      toast.error("Couldn't join (you may already be in)");
       fetchData();
+      return;
     }
+    setHasJoined(true);
+    toast.success("You've joined the event!");
+    fetchData();
   };
 
   const leaveEvent = async () => {

@@ -27,7 +27,7 @@ export default function AddRun() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [timeTaken, setTimeTaken] = useState("");
   const [notes, setNotes] = useState("");
-  const [eventId, setEventId] = useState(preselectedEvent);
+  const [eventId, setEventId] = useState(preselectedEvent || "none");
   const [events, setEvents] = useState<EventOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,9 +59,38 @@ export default function AddRun() {
       return;
     }
 
+    if (timeTaken) {
+      const mins = parseFloat(timeTaken);
+      if (isNaN(mins) || mins <= 0 || mins > 1440) {
+        toast.error("Time must be between 0 and 1440 minutes");
+        return;
+      }
+    }
+
+    if (!date || new Date(date) > new Date(new Date().toDateString())) {
+      toast.error("Run date can't be in the future");
+      return;
+    }
+
     setSubmitting(true);
 
     const minutes = timeTaken ? parseFloat(timeTaken) : null;
+    const resolvedEventId = eventId && eventId !== "none" ? eventId : null;
+
+    // Prevent duplicate run for the same event
+    if (resolvedEventId) {
+      const { data: existing } = await supabase
+        .from("runs")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("event_id", resolvedEventId)
+        .maybeSingle();
+      if (existing) {
+        toast.error("You've already logged a run for this event");
+        setSubmitting(false);
+        return;
+      }
+    }
 
     const { error } = await supabase.from("runs").insert({
       user_id: user!.id,
@@ -70,7 +99,7 @@ export default function AddRun() {
       time_taken_minutes: minutes,
       notes: notes || null,
       photo_url: null,
-      event_id: eventId || null,
+      event_id: resolvedEventId,
     });
 
     if (error) {

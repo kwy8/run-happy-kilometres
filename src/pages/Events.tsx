@@ -36,12 +36,22 @@ export default function Events() {
     setLoadingData(true);
     const { data: eventsData } = await supabase
       .from("events")
-      .select("*")
-      .order("event_date", { ascending: false });
+      .select("*");
 
     if (eventsData) {
+      const today = new Date().toISOString().split("T")[0];
+      // Upcoming first (ascending), then past (descending)
+      const sorted = [...eventsData].sort((a, b) => {
+        const aUpcoming = a.event_date >= today;
+        const bUpcoming = b.event_date >= today;
+        if (aUpcoming && !bUpcoming) return -1;
+        if (!aUpcoming && bUpcoming) return 1;
+        if (aUpcoming) return a.event_date.localeCompare(b.event_date);
+        return b.event_date.localeCompare(a.event_date);
+      });
+
       const withCounts = await Promise.all(
-        eventsData.map(async (event) => {
+        sorted.map(async (event) => {
           const { count } = await supabase
             .from("event_participants")
             .select("*", { count: "exact", head: true })

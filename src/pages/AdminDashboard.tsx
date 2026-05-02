@@ -88,7 +88,9 @@ export default function AdminDashboard() {
   };
 
   const deleteRun = async (id: string) => {
-    await supabase.from("runs").delete().eq("id", id);
+    if (!window.confirm("Delete this run? This cannot be undone.")) return;
+    const { error } = await supabase.from("runs").delete().eq("id", id);
+    if (error) { toast.error("Failed to delete run"); return; }
     toast.success("Run deleted");
     fetchData();
   };
@@ -96,13 +98,19 @@ export default function AdminDashboard() {
   const saveRunEdit = async () => {
     if (!editingRun) return;
     const km = parseFloat(editDistance);
-    if (isNaN(km) || km <= 0) { toast.error("Invalid distance"); return; }
-    await supabase.from("runs").update({
+    if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
+    if (editTime) {
+      const mins = parseFloat(editTime);
+      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
+    }
+    if (!editDate) { toast.error("Date required"); return; }
+    const { error } = await supabase.from("runs").update({
       distance_km: km,
       time_taken_minutes: editTime ? parseFloat(editTime) : null,
       run_date: editDate,
       notes: editNotes || null,
     }).eq("id", editingRun.id);
+    if (error) { toast.error("Failed to save run"); return; }
     toast.success("Run updated");
     setEditingRun(null);
     fetchData();
@@ -110,8 +118,13 @@ export default function AdminDashboard() {
 
   const addRunForUser = async () => {
     const km = parseFloat(addDistance);
-    if (isNaN(km) || km <= 0) { toast.error("Invalid distance"); return; }
+    if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
+    if (addTime) {
+      const mins = parseFloat(addTime);
+      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
+    }
     if (!addUserId) { toast.error("Select a user"); return; }
+    if (!addDate) { toast.error("Date required"); return; }
     const { error } = await supabase.from("runs").insert({
       user_id: addUserId,
       distance_km: km,
@@ -122,7 +135,7 @@ export default function AdminDashboard() {
     if (error) { toast.error("Failed to add run"); return; }
     toast.success("Run added");
     setShowAddRun(false);
-    setAddDistance(""); setAddTime(""); setAddNotes("");
+    setAddUserId(""); setAddDistance(""); setAddTime(""); setAddNotes("");
     fetchData();
   };
 
