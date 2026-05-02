@@ -77,14 +77,16 @@ export default function Dashboard() {
   };
 
   const joinEvent = async () => {
-    if (!upcomingEvent) return;
+    if (!upcomingEvent || hasJoined) return;
     setJoining(true);
     const { error } = await supabase
       .from("event_participants")
       .insert({ event_id: upcomingEvent.id, user_id: user!.id });
     setJoining(false);
     if (error) {
-      toast.error("Failed to join event");
+      // Likely already joined elsewhere — sync state
+      setHasJoined(true);
+      toast.error("Couldn't join (you may already be in)");
       return;
     }
     setHasJoined(true);
