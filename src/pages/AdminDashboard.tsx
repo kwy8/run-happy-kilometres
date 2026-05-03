@@ -203,14 +203,16 @@ export default function AdminDashboard() {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.display_name}</TableCell>
                     <TableCell>{r.distance_km.toFixed(1)} km</TableCell>
-                    <TableCell>{r.time_taken_minutes ? `${r.time_taken_minutes} min` : "—"}</TableCell>
+                    <TableCell>{formatMinSec(r.time_taken_minutes)}</TableCell>
                     <TableCell>{new Date(r.run_date).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => {
                           setEditingRun(r);
                           setEditDistance(String(r.distance_km));
-                          setEditTime(r.time_taken_minutes ? String(r.time_taken_minutes) : "");
+                          const ms = splitMinSec(r.time_taken_minutes);
+                          setEditTimeMin(ms.min);
+                          setEditTimeSec(ms.sec);
                           setEditDate(r.run_date);
                           setEditNotes(r.notes || "");
                         }}>
@@ -250,7 +252,14 @@ export default function AdminDashboard() {
           <DialogHeader><DialogTitle>Edit Run</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Distance (km)</Label><Input type="number" step="0.01" value={editDistance} onChange={(e) => setEditDistance(e.target.value)} /></div>
-            <div><Label>Time (minutes)</Label><Input type="number" step="0.1" value={editTime} onChange={(e) => setEditTime(e.target.value)} /></div>
+            <div>
+              <Label>Time</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={editTimeMin} onChange={(e) => setEditTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={editTimeSec} onChange={(e) => setEditTimeSec(e.target.value)} placeholder="sec" />
+              </div>
+            </div>
             <div><Label>Date</Label><Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} /></div>
             <div><Label>Notes</Label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
           </div>
