@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA");
     const [runsRes, profileRes, eventRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
