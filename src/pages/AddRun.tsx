@@ -67,7 +67,8 @@ export default function AddRun() {
       }
     }
 
-    if (!date || new Date(date) > new Date(new Date().toDateString())) {
+    const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local tz
+    if (!date || date > todayStr) {
       toast.error("Run date can't be in the future");
       return;
     }
