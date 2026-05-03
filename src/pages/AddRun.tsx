@@ -145,8 +145,12 @@ export default function AddRun() {
               </div>
             )}
             <div>
-              <Label>Time Taken (minutes)</Label>
-              <Input type="number" step="0.1" min="0" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} placeholder="e.g. 30" />
+              <Label>Time Taken</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={timeMin} onChange={(e) => setTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={timeSec} onChange={(e) => setTimeSec(e.target.value)} placeholder="sec" />
+              </div>
             </div>
             {!preselectedEvent && (
               <div>
