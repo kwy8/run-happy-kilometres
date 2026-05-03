@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sun, Trash2, Edit, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { formatMinSec, combineMinSec, splitMinSec } from "@/lib/time";
 
 interface Profile {
   user_id: string;
@@ -42,7 +43,8 @@ export default function AdminDashboard() {
   // Edit run dialog
   const [editingRun, setEditingRun] = useState<Run | null>(null);
   const [editDistance, setEditDistance] = useState("");
-  const [editTime, setEditTime] = useState("");
+  const [editTimeMin, setEditTimeMin] = useState("");
+  const [editTimeSec, setEditTimeSec] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editNotes, setEditNotes] = useState("");
 
@@ -50,7 +52,8 @@ export default function AdminDashboard() {
   const [showAddRun, setShowAddRun] = useState(false);
   const [addUserId, setAddUserId] = useState("");
   const [addDistance, setAddDistance] = useState("");
-  const [addTime, setAddTime] = useState("");
+  const [addTimeMin, setAddTimeMin] = useState("");
+  const [addTimeSec, setAddTimeSec] = useState("");
   const [addDate, setAddDate] = useState(new Date().toISOString().split("T")[0]);
   const [addNotes, setAddNotes] = useState("");
 
@@ -99,20 +102,39 @@ export default function AdminDashboard() {
     if (!editingRun) return;
     const km = parseFloat(editDistance);
     if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
-    if (editTime) {
-      const mins = parseFloat(editTime);
-      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
-    }
+    const mins = combineMinSec(editTimeMin, editTimeSec);
+    if (mins !== null && (isNaN(mins) || mins <= 0 || mins > 1440)) { toast.error("Time must be 0–1440 min"); return; }
     if (!editDate) { toast.error("Date required"); return; }
     const { error } = await supabase.from("runs").update({
       distance_km: km,
-      time_taken_minutes: editTime ? parseFloat(editTime) : null,
+      time_taken_minutes: mins,
       run_date: editDate,
       notes: editNotes || null,
     }).eq("id", editingRun.id);
     if (error) { toast.error("Failed to save run"); return; }
     toast.success("Run updated");
     setEditingRun(null);
+    fetchData();
+  };
+
+  const addRunForUser = async () => {
+    const km = parseFloat(addDistance);
+    if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
+    const mins = combineMinSec(addTimeMin, addTimeSec);
+    if (mins !== null && (isNaN(mins) || mins <= 0 || mins > 1440)) { toast.error("Time must be 0–1440 min"); return; }
+    if (!addUserId) { toast.error("Select a user"); return; }
+    if (!addDate) { toast.error("Date required"); return; }
+    const { error } = await supabase.from("runs").insert({
+      user_id: addUserId,
+      distance_km: km,
+      run_date: addDate,
+      time_taken_minutes: mins,
+      notes: addNotes || null,
+    });
+    if (error) { toast.error("Failed to add run"); return; }
+    toast.success("Run added");
+    setShowAddRun(false);
+    setAddUserId(""); setAddDistance(""); setAddTimeMin(""); setAddTimeSec(""); setAddNotes("");
     fetchData();
   };
 
