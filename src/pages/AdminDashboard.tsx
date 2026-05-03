@@ -287,7 +287,14 @@ export default function AdminDashboard() {
               </Select>
             </div>
             <div><Label>Distance (km)</Label><Input type="number" step="0.01" value={addDistance} onChange={(e) => setAddDistance(e.target.value)} /></div>
-            <div><Label>Time (minutes)</Label><Input type="number" step="0.1" value={addTime} onChange={(e) => setAddTime(e.target.value)} /></div>
+            <div>
+              <Label>Time</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={addTimeMin} onChange={(e) => setAddTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={addTimeSec} onChange={(e) => setAddTimeSec(e.target.value)} placeholder="sec" />
+              </div>
+            </div>
             <div><Label>Date</Label><Input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} /></div>
             <div><Label>Notes</Label><Input value={addNotes} onChange={(e) => setAddNotes(e.target.value)} /></div>
           </div>
