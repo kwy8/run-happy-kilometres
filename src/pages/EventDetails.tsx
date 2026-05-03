@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Sun, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
+import { formatMinSec, formatPace } from "@/lib/time";
 
 interface EventData {
   id: string;
