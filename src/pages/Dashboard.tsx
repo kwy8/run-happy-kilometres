@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
+import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
 
 interface Run {
