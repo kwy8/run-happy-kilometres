@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sun } from "lucide-react";
+import { combineMinSec } from "@/lib/time";
 import { toast } from "sonner";
 
 interface EventOption {
@@ -25,7 +26,8 @@ export default function AddRun() {
 
   const [distance, setDistance] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [timeTaken, setTimeTaken] = useState("");
+  const [timeMin, setTimeMin] = useState("");
+  const [timeSec, setTimeSec] = useState("");
   const [notes, setNotes] = useState("");
   const [eventId, setEventId] = useState(preselectedEvent || "none");
   const [events, setEvents] = useState<EventOption[]>([]);
@@ -59,10 +61,15 @@ export default function AddRun() {
       return;
     }
 
-    if (timeTaken) {
-      const mins = parseFloat(timeTaken);
-      if (isNaN(mins) || mins <= 0 || mins > 1440) {
+    const minutes = combineMinSec(timeMin, timeSec);
+    if (minutes !== null) {
+      if (isNaN(minutes) || minutes <= 0 || minutes > 1440) {
         toast.error("Time must be between 0 and 1440 minutes");
+        return;
+      }
+      const secNum = timeSec ? parseInt(timeSec, 10) : 0;
+      if (secNum < 0 || secNum >= 60) {
+        toast.error("Seconds must be between 0 and 59");
         return;
       }
     }
@@ -75,7 +82,6 @@ export default function AddRun() {
 
     setSubmitting(true);
 
-    const minutes = timeTaken ? parseFloat(timeTaken) : null;
     const resolvedEventId = eventId && eventId !== "none" ? eventId : null;
 
     // Prevent duplicate run for the same event
@@ -139,8 +145,12 @@ export default function AddRun() {
               </div>
             )}
             <div>
-              <Label>Time Taken (minutes)</Label>
-              <Input type="number" step="0.1" min="0" value={timeTaken} onChange={(e) => setTimeTaken(e.target.value)} placeholder="e.g. 30" />
+              <Label>Time Taken</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={timeMin} onChange={(e) => setTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={timeSec} onChange={(e) => setTimeSec(e.target.value)} placeholder="sec" />
+              </div>
             </div>
             {!preselectedEvent && (
               <div>

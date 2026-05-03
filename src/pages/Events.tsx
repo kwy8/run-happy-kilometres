@@ -39,16 +39,8 @@ export default function Events() {
       .select("*");
 
     if (eventsData) {
-      const today = new Date().toISOString().split("T")[0];
-      // Upcoming first (ascending), then past (descending)
-      const sorted = [...eventsData].sort((a, b) => {
-        const aUpcoming = a.event_date >= today;
-        const bUpcoming = b.event_date >= today;
-        if (aUpcoming && !bUpcoming) return -1;
-        if (!aUpcoming && bUpcoming) return 1;
-        if (aUpcoming) return a.event_date.localeCompare(b.event_date);
-        return b.event_date.localeCompare(a.event_date);
-      });
+      // Newest events first
+      const sorted = [...eventsData].sort((a, b) => b.event_date.localeCompare(a.event_date));
 
       const withCounts = await Promise.all(
         sorted.map(async (event) => {

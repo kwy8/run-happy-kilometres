@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
+import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
 
 interface Run {
@@ -199,7 +200,7 @@ export default function Dashboard() {
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Fastest Pace</p>
               <p className="text-2xl font-bold text-foreground">
-                {fastestPace === Infinity ? "—" : `${fastestPace.toFixed(1)} min/km`}
+                {fastestPace === Infinity ? "—" : formatPace(fastestPace)}
               </p>
             </CardContent>
           </Card>
@@ -223,7 +224,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-1">Latest ({new Date(latestRun.run_date).toLocaleDateString()})</p>
                   <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(1)} km</p>
                   {latestRun.time_taken_minutes && (
-                    <p className="text-muted-foreground">{latestRun.time_taken_minutes} min ({(latestRun.time_taken_minutes / latestRun.distance_km).toFixed(1)} min/km)</p>
+                    <p className="text-muted-foreground">{formatMinSec(latestRun.time_taken_minutes)} ({formatPace(latestRun.time_taken_minutes / latestRun.distance_km)})</p>
                   )}
                 </div>
                 <div>
@@ -234,7 +235,7 @@ export default function Dashboard() {
                     <>
                       <p className="font-bold text-foreground">{previousRun.distance_km.toFixed(1)} km</p>
                       {previousRun.time_taken_minutes && (
-                        <p className="text-muted-foreground">{previousRun.time_taken_minutes} min ({(previousRun.time_taken_minutes / previousRun.distance_km).toFixed(1)} min/km)</p>
+                        <p className="text-muted-foreground">{formatMinSec(previousRun.time_taken_minutes)} ({formatPace(previousRun.time_taken_minutes / previousRun.distance_km)})</p>
                       )}
                     </>
                   ) : (

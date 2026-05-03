@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sun, Trash2, Edit, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { formatMinSec, combineMinSec, splitMinSec } from "@/lib/time";
 
 interface Profile {
   user_id: string;
@@ -42,7 +43,8 @@ export default function AdminDashboard() {
   // Edit run dialog
   const [editingRun, setEditingRun] = useState<Run | null>(null);
   const [editDistance, setEditDistance] = useState("");
-  const [editTime, setEditTime] = useState("");
+  const [editTimeMin, setEditTimeMin] = useState("");
+  const [editTimeSec, setEditTimeSec] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editNotes, setEditNotes] = useState("");
 
@@ -50,7 +52,8 @@ export default function AdminDashboard() {
   const [showAddRun, setShowAddRun] = useState(false);
   const [addUserId, setAddUserId] = useState("");
   const [addDistance, setAddDistance] = useState("");
-  const [addTime, setAddTime] = useState("");
+  const [addTimeMin, setAddTimeMin] = useState("");
+  const [addTimeSec, setAddTimeSec] = useState("");
   const [addDate, setAddDate] = useState(new Date().toISOString().split("T")[0]);
   const [addNotes, setAddNotes] = useState("");
 
@@ -99,14 +102,12 @@ export default function AdminDashboard() {
     if (!editingRun) return;
     const km = parseFloat(editDistance);
     if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
-    if (editTime) {
-      const mins = parseFloat(editTime);
-      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
-    }
+    const mins = combineMinSec(editTimeMin, editTimeSec);
+    if (mins !== null && (isNaN(mins) || mins <= 0 || mins > 1440)) { toast.error("Time must be 0–1440 min"); return; }
     if (!editDate) { toast.error("Date required"); return; }
     const { error } = await supabase.from("runs").update({
       distance_km: km,
-      time_taken_minutes: editTime ? parseFloat(editTime) : null,
+      time_taken_minutes: mins,
       run_date: editDate,
       notes: editNotes || null,
     }).eq("id", editingRun.id);
@@ -119,23 +120,21 @@ export default function AdminDashboard() {
   const addRunForUser = async () => {
     const km = parseFloat(addDistance);
     if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
-    if (addTime) {
-      const mins = parseFloat(addTime);
-      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
-    }
+    const mins = combineMinSec(addTimeMin, addTimeSec);
+    if (mins !== null && (isNaN(mins) || mins <= 0 || mins > 1440)) { toast.error("Time must be 0–1440 min"); return; }
     if (!addUserId) { toast.error("Select a user"); return; }
     if (!addDate) { toast.error("Date required"); return; }
     const { error } = await supabase.from("runs").insert({
       user_id: addUserId,
       distance_km: km,
       run_date: addDate,
-      time_taken_minutes: addTime ? parseFloat(addTime) : null,
+      time_taken_minutes: mins,
       notes: addNotes || null,
     });
     if (error) { toast.error("Failed to add run"); return; }
     toast.success("Run added");
     setShowAddRun(false);
-    setAddUserId(""); setAddDistance(""); setAddTime(""); setAddNotes("");
+    setAddUserId(""); setAddDistance(""); setAddTimeMin(""); setAddTimeSec(""); setAddNotes("");
     fetchData();
   };
 
@@ -204,14 +203,16 @@ export default function AdminDashboard() {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.display_name}</TableCell>
                     <TableCell>{r.distance_km.toFixed(1)} km</TableCell>
-                    <TableCell>{r.time_taken_minutes ? `${r.time_taken_minutes} min` : "—"}</TableCell>
+                    <TableCell>{formatMinSec(r.time_taken_minutes)}</TableCell>
                     <TableCell>{new Date(r.run_date).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => {
                           setEditingRun(r);
                           setEditDistance(String(r.distance_km));
-                          setEditTime(r.time_taken_minutes ? String(r.time_taken_minutes) : "");
+                          const ms = splitMinSec(r.time_taken_minutes);
+                          setEditTimeMin(ms.min);
+                          setEditTimeSec(ms.sec);
                           setEditDate(r.run_date);
                           setEditNotes(r.notes || "");
                         }}>
@@ -251,7 +252,14 @@ export default function AdminDashboard() {
           <DialogHeader><DialogTitle>Edit Run</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Distance (km)</Label><Input type="number" step="0.01" value={editDistance} onChange={(e) => setEditDistance(e.target.value)} /></div>
-            <div><Label>Time (minutes)</Label><Input type="number" step="0.1" value={editTime} onChange={(e) => setEditTime(e.target.value)} /></div>
+            <div>
+              <Label>Time</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={editTimeMin} onChange={(e) => setEditTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={editTimeSec} onChange={(e) => setEditTimeSec(e.target.value)} placeholder="sec" />
+              </div>
+            </div>
             <div><Label>Date</Label><Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} /></div>
             <div><Label>Notes</Label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
           </div>
@@ -279,7 +287,14 @@ export default function AdminDashboard() {
               </Select>
             </div>
             <div><Label>Distance (km)</Label><Input type="number" step="0.01" value={addDistance} onChange={(e) => setAddDistance(e.target.value)} /></div>
-            <div><Label>Time (minutes)</Label><Input type="number" step="0.1" value={addTime} onChange={(e) => setAddTime(e.target.value)} /></div>
+            <div>
+              <Label>Time</Label>
+              <div className="flex gap-2 items-center">
+                <Input type="number" min="0" max="1440" value={addTimeMin} onChange={(e) => setAddTimeMin(e.target.value)} placeholder="min" />
+                <span className="text-muted-foreground">:</span>
+                <Input type="number" min="0" max="59" value={addTimeSec} onChange={(e) => setAddTimeSec(e.target.value)} placeholder="sec" />
+              </div>
+            </div>
             <div><Label>Date</Label><Input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} /></div>
             <div><Label>Notes</Label><Input value={addNotes} onChange={(e) => setAddNotes(e.target.value)} /></div>
           </div>
