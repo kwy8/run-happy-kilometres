@@ -185,10 +185,10 @@ export default function EventDetails() {
                     <TableRow key={p.user_id}>
                       <TableCell className="font-medium">{p.display_name}</TableCell>
                       <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
-                      <TableCell>{p.time_taken_minutes ? `${p.time_taken_minutes} min` : "—"}</TableCell>
+                      <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                       <TableCell>
                         {p.distance_km && p.time_taken_minutes
-                          ? `${(p.time_taken_minutes / p.distance_km).toFixed(1)} min/km`
+                          ? formatPace(p.time_taken_minutes / p.distance_km)
                           : "—"}
                       </TableCell>
                     </TableRow>
