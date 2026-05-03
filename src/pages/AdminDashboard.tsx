@@ -138,29 +138,6 @@ export default function AdminDashboard() {
     fetchData();
   };
 
-  const addRunForUser = async () => {
-    const km = parseFloat(addDistance);
-    if (isNaN(km) || km <= 0 || km > 200) { toast.error("Distance must be 0.01–200 km"); return; }
-    if (addTime) {
-      const mins = parseFloat(addTime);
-      if (isNaN(mins) || mins <= 0 || mins > 1440) { toast.error("Time must be 0–1440 min"); return; }
-    }
-    if (!addUserId) { toast.error("Select a user"); return; }
-    if (!addDate) { toast.error("Date required"); return; }
-    const { error } = await supabase.from("runs").insert({
-      user_id: addUserId,
-      distance_km: km,
-      run_date: addDate,
-      time_taken_minutes: addTime ? parseFloat(addTime) : null,
-      notes: addNotes || null,
-    });
-    if (error) { toast.error("Failed to add run"); return; }
-    toast.success("Run added");
-    setShowAddRun(false);
-    setAddUserId(""); setAddDistance(""); setAddTime(""); setAddNotes("");
-    fetchData();
-  };
-
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
