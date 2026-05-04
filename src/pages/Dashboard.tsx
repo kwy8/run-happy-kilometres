@@ -261,3 +261,117 @@ function getGreeting(name: string): string {
   if (hour < 17) return `Hey ${name}! ☀️`;
   return `Evening, ${name}! 🌙`;
 }
+
+type Tone = "positive" | "negative" | "neutral";
+
+function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
+  const latestPace =
+    latest.time_taken_minutes != null && latest.distance_km > 0
+      ? latest.time_taken_minutes / latest.distance_km
+      : null;
+  const prevPace =
+    previous.time_taken_minutes != null && previous.distance_km > 0
+      ? previous.time_taken_minutes / previous.distance_km
+      : null;
+
+  const rows = [
+    {
+      label: "Distance",
+      latest: `${latest.distance_km.toFixed(1)} km`,
+      previous: `${previous.distance_km.toFixed(1)} km`,
+      delta: formatDelta(latest.distance_km - previous.distance_km, (n) => `${n.toFixed(1)} km`),
+      ...evalDirection(latest.distance_km, previous.distance_km, { lowerIsBetter: false }),
+    },
+    {
+      label: "Duration",
+      latest: latest.time_taken_minutes != null ? formatMinSec(latest.time_taken_minutes) : "—",
+      previous: previous.time_taken_minutes != null ? formatMinSec(previous.time_taken_minutes) : "—",
+      delta:
+        latest.time_taken_minutes != null && previous.time_taken_minutes != null
+          ? formatDeltaTime(latest.time_taken_minutes - previous.time_taken_minutes)
+          : null,
+      ...(latest.time_taken_minutes != null && previous.time_taken_minutes != null
+        ? { ...evalDirection(latest.time_taken_minutes, previous.time_taken_minutes, { lowerIsBetter: false }), tone: "neutral" as Tone }
+        : { direction: "na" as const, tone: "neutral" as Tone }),
+    },
+    {
+      label: "Pace",
+      latest: latestPace != null ? formatPace(latestPace) : "—",
+      previous: prevPace != null ? formatPace(prevPace) : "—",
+      delta:
+        latestPace != null && prevPace != null
+          ? `${formatDeltaTime(latestPace - prevPace)} /km`
+          : null,
+      ...(latestPace != null && prevPace != null
+        ? evalDirection(latestPace, prevPace, { lowerIsBetter: true })
+        : { direction: "na" as const, tone: "neutral" as Tone }),
+    },
+  ];
+
+  return (
+    <div className="text-sm">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-2 items-center">
+        <div className="text-xs text-muted-foreground uppercase tracking-wide">Metric</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">
+          Latest<br /><span className="normal-case font-normal">{new Date(latest.run_date).toLocaleDateString()}</span>
+        </div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">
+          Previous<br /><span className="normal-case font-normal">{new Date(previous.run_date).toLocaleDateString()}</span>
+        </div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Change</div>
+
+        {rows.map((row) => (
+          <RowCells key={row.label} row={row} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RowCells({ row }: { row: { label: string; latest: string; previous: string; delta: string | null; direction: "up" | "down" | "flat" | "na"; tone: Tone } }) {
+  const toneClass =
+    row.tone === "positive" ? "text-primary" : row.tone === "negative" ? "text-destructive" : "text-muted-foreground";
+  const Icon = row.direction === "up" ? ArrowUp : row.direction === "down" ? ArrowDown : Minus;
+
+  return (
+    <>
+      <div className="font-medium text-foreground">{row.label}</div>
+      <div className="text-right font-bold text-foreground">{row.latest}</div>
+      <div className="text-right text-muted-foreground">{row.previous}</div>
+      <div className={`text-right font-medium flex items-center justify-end gap-1 ${toneClass}`}>
+        {row.direction === "na" || row.delta == null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <>
+            <Icon className="w-3 h-3" />
+            <span>{row.delta}</span>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function evalDirection(
+  latest: number,
+  previous: number,
+  { lowerIsBetter }: { lowerIsBetter: boolean },
+): { direction: "up" | "down" | "flat"; tone: Tone } {
+  const diff = latest - previous;
+  if (Math.abs(diff) < 1e-6) return { direction: "flat", tone: "neutral" };
+  const better = lowerIsBetter ? diff < 0 : diff > 0;
+  return {
+    direction: better ? "up" : "down",
+    tone: better ? "positive" : "negative",
+  };
+}
+
+function formatDelta(diff: number, fmt: (n: number) => string): string {
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  return `${sign}${fmt(Math.abs(diff))}`;
+}
+
+function formatDeltaTime(diffMin: number): string {
+  const sign = diffMin > 0 ? "+" : diffMin < 0 ? "−" : "";
+  return `${sign}${formatMinSec(Math.abs(diffMin))}`;
+}
