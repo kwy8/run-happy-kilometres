@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
 
@@ -221,35 +221,20 @@ export default function Dashboard() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Latest vs Previous Run</CardTitle></CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+              {previousRun ? (
+                <ComparisonTable latest={latestRun} previous={previousRun} />
+              ) : (
+                <div className="text-sm">
                   <p className="text-muted-foreground mb-1">Latest ({new Date(latestRun.run_date).toLocaleDateString()})</p>
                   <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(1)} km</p>
-                  {latestRun.time_taken_minutes && (
-                    <p className="text-muted-foreground">{formatMinSec(latestRun.time_taken_minutes)} ({formatPace(latestRun.time_taken_minutes / latestRun.distance_km)})</p>
+                  {latestRun.time_taken_minutes != null && (
+                    <p className="text-muted-foreground">
+                      {formatMinSec(latestRun.time_taken_minutes)}
+                      {latestRun.distance_km > 0 && ` (${formatPace(latestRun.time_taken_minutes / latestRun.distance_km)})`}
+                    </p>
                   )}
+                  <p className="text-muted-foreground mt-3">No previous run yet — log another to see your progress!</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground mb-1">
-                    {previousRun ? `Previous (${new Date(previousRun.run_date).toLocaleDateString()})` : "Previous"}
-                  </p>
-                  {previousRun ? (
-                    <>
-                      <p className="font-bold text-foreground">{previousRun.distance_km.toFixed(1)} km</p>
-                      {previousRun.time_taken_minutes && (
-                        <p className="text-muted-foreground">{formatMinSec(previousRun.time_taken_minutes)} ({formatPace(previousRun.time_taken_minutes / previousRun.distance_km)})</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">No previous run yet</p>
-                  )}
-                </div>
-              </div>
-              {latestRun && previousRun && (
-                <p className="mt-3 text-sm font-medium text-foreground">
-                  Distance change: {(latestRun.distance_km - previousRun.distance_km) > 0 ? "+" : ""}
-                  {(latestRun.distance_km - previousRun.distance_km).toFixed(1)} km
-                </p>
               )}
             </CardContent>
           </Card>
