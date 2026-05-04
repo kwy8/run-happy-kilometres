@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus, Calendar, MapPin, Clock, Check } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
 
@@ -221,35 +221,20 @@ export default function Dashboard() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Latest vs Previous Run</CardTitle></CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+              {previousRun ? (
+                <ComparisonTable latest={latestRun} previous={previousRun} />
+              ) : (
+                <div className="text-sm">
                   <p className="text-muted-foreground mb-1">Latest ({new Date(latestRun.run_date).toLocaleDateString()})</p>
                   <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(1)} km</p>
-                  {latestRun.time_taken_minutes && (
-                    <p className="text-muted-foreground">{formatMinSec(latestRun.time_taken_minutes)} ({formatPace(latestRun.time_taken_minutes / latestRun.distance_km)})</p>
+                  {latestRun.time_taken_minutes != null && (
+                    <p className="text-muted-foreground">
+                      {formatMinSec(latestRun.time_taken_minutes)}
+                      {latestRun.distance_km > 0 && ` (${formatPace(latestRun.time_taken_minutes / latestRun.distance_km)})`}
+                    </p>
                   )}
+                  <p className="text-muted-foreground mt-3">No previous run yet — log another to see your progress!</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground mb-1">
-                    {previousRun ? `Previous (${new Date(previousRun.run_date).toLocaleDateString()})` : "Previous"}
-                  </p>
-                  {previousRun ? (
-                    <>
-                      <p className="font-bold text-foreground">{previousRun.distance_km.toFixed(1)} km</p>
-                      {previousRun.time_taken_minutes && (
-                        <p className="text-muted-foreground">{formatMinSec(previousRun.time_taken_minutes)} ({formatPace(previousRun.time_taken_minutes / previousRun.distance_km)})</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">No previous run yet</p>
-                  )}
-                </div>
-              </div>
-              {latestRun && previousRun && (
-                <p className="mt-3 text-sm font-medium text-foreground">
-                  Distance change: {(latestRun.distance_km - previousRun.distance_km) > 0 ? "+" : ""}
-                  {(latestRun.distance_km - previousRun.distance_km).toFixed(1)} km
-                </p>
               )}
             </CardContent>
           </Card>
@@ -275,4 +260,118 @@ function getGreeting(name: string): string {
   if (hour < 12) return `Good morning, ${name}! 🌅`;
   if (hour < 17) return `Hey ${name}! ☀️`;
   return `Evening, ${name}! 🌙`;
+}
+
+type Tone = "positive" | "negative" | "neutral";
+
+function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
+  const latestPace =
+    latest.time_taken_minutes != null && latest.distance_km > 0
+      ? latest.time_taken_minutes / latest.distance_km
+      : null;
+  const prevPace =
+    previous.time_taken_minutes != null && previous.distance_km > 0
+      ? previous.time_taken_minutes / previous.distance_km
+      : null;
+
+  const rows = [
+    {
+      label: "Distance",
+      latest: `${latest.distance_km.toFixed(1)} km`,
+      previous: `${previous.distance_km.toFixed(1)} km`,
+      delta: formatDelta(latest.distance_km - previous.distance_km, (n) => `${n.toFixed(1)} km`),
+      ...evalDirection(latest.distance_km, previous.distance_km, { lowerIsBetter: false }),
+    },
+    {
+      label: "Duration",
+      latest: latest.time_taken_minutes != null ? formatMinSec(latest.time_taken_minutes) : "—",
+      previous: previous.time_taken_minutes != null ? formatMinSec(previous.time_taken_minutes) : "—",
+      delta:
+        latest.time_taken_minutes != null && previous.time_taken_minutes != null
+          ? formatDeltaTime(latest.time_taken_minutes - previous.time_taken_minutes)
+          : null,
+      ...(latest.time_taken_minutes != null && previous.time_taken_minutes != null
+        ? { ...evalDirection(latest.time_taken_minutes, previous.time_taken_minutes, { lowerIsBetter: false }), tone: "neutral" as Tone }
+        : { direction: "na" as const, tone: "neutral" as Tone }),
+    },
+    {
+      label: "Pace",
+      latest: latestPace != null ? formatPace(latestPace) : "—",
+      previous: prevPace != null ? formatPace(prevPace) : "—",
+      delta:
+        latestPace != null && prevPace != null
+          ? `${formatDeltaTime(latestPace - prevPace)} /km`
+          : null,
+      ...(latestPace != null && prevPace != null
+        ? evalDirection(latestPace, prevPace, { lowerIsBetter: true })
+        : { direction: "na" as const, tone: "neutral" as Tone }),
+    },
+  ];
+
+  return (
+    <div className="text-sm">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-2 items-center">
+        <div className="text-xs text-muted-foreground uppercase tracking-wide">Metric</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">
+          Latest<br /><span className="normal-case font-normal">{new Date(latest.run_date).toLocaleDateString()}</span>
+        </div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">
+          Previous<br /><span className="normal-case font-normal">{new Date(previous.run_date).toLocaleDateString()}</span>
+        </div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Change</div>
+
+        {rows.map((row) => (
+          <RowCells key={row.label} row={row} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RowCells({ row }: { row: { label: string; latest: string; previous: string; delta: string | null; direction: "up" | "down" | "flat" | "na"; tone: Tone } }) {
+  const toneClass =
+    row.tone === "positive" ? "text-primary" : row.tone === "negative" ? "text-destructive" : "text-muted-foreground";
+  const Icon = row.direction === "up" ? ArrowUp : row.direction === "down" ? ArrowDown : Minus;
+
+  return (
+    <>
+      <div className="font-medium text-foreground">{row.label}</div>
+      <div className="text-right font-bold text-foreground">{row.latest}</div>
+      <div className="text-right text-muted-foreground">{row.previous}</div>
+      <div className={`text-right font-medium flex items-center justify-end gap-1 ${toneClass}`}>
+        {row.direction === "na" || row.delta == null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <>
+            <Icon className="w-3 h-3" />
+            <span>{row.delta}</span>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function evalDirection(
+  latest: number,
+  previous: number,
+  { lowerIsBetter }: { lowerIsBetter: boolean },
+): { direction: "up" | "down" | "flat"; tone: Tone } {
+  const diff = latest - previous;
+  if (Math.abs(diff) < 1e-6) return { direction: "flat", tone: "neutral" };
+  const better = lowerIsBetter ? diff < 0 : diff > 0;
+  return {
+    direction: better ? "up" : "down",
+    tone: better ? "positive" : "negative",
+  };
+}
+
+function formatDelta(diff: number, fmt: (n: number) => string): string {
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  return `${sign}${fmt(Math.abs(diff))}`;
+}
+
+function formatDeltaTime(diffMin: number): string {
+  const sign = diffMin > 0 ? "+" : diffMin < 0 ? "−" : "";
+  return `${sign}${formatMinSec(Math.abs(diffMin))}`;
 }
