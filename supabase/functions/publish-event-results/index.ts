@@ -6,6 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const SCORING_VERSION = 1;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -35,26 +37,47 @@ Deno.serve(async (req) => {
 
     const { data: ev, error: evErr } = await admin
       .from("events")
-      .select("id, route_distance_m, route_elevation_gain_m, route_elevation_loss_m, alpha")
+      .select("id, route_id, route_distance_m, route_elevation_gain_m, route_elevation_loss_m, alpha")
       .eq("id", event_id).maybeSingle();
     if (evErr || !ev) return json({ error: "Event not found" }, 404);
 
+    // Prefer route-level data when an event has a route assigned.
+    let distance_m = ev.route_distance_m;
+    let elevation_gain_m = ev.route_elevation_gain_m;
+    let elevation_loss_m = ev.route_elevation_loss_m;
+    let alpha_used = ev.alpha;
+    let route_id: string | null = ev.route_id;
+
+    if (route_id) {
+      const { data: rt } = await admin
+        .from("routes")
+        .select("distance_m, elevation_gain_m, elevation_loss_m, current_alpha")
+        .eq("id", route_id).maybeSingle();
+      if (rt) {
+        distance_m = rt.distance_m ?? distance_m;
+        elevation_gain_m = rt.elevation_gain_m ?? elevation_gain_m;
+        elevation_loss_m = rt.elevation_loss_m ?? elevation_loss_m;
+        alpha_used = rt.current_alpha ?? alpha_used;
+      }
+    }
+
     if (publish !== false) {
-      if (!ev.route_distance_m || ev.route_distance_m <= 0) {
+      if (!distance_m || distance_m <= 0) {
         return json({ error: "Set route distance before publishing" }, 400);
       }
-      if (ev.alpha === null || ev.alpha === undefined) {
+      if (alpha_used === null || alpha_used === undefined) {
         return json({ error: "Set alpha before publishing" }, 400);
       }
 
-      // Snapshot route params + alpha onto each result; trigger recomputes scores.
       const { error: upErr } = await admin
         .from("event_results")
         .update({
-          distance_m: ev.route_distance_m,
-          elevation_gain_m: ev.route_elevation_gain_m,
-          elevation_loss_m: ev.route_elevation_loss_m,
-          alpha_used: ev.alpha,
+          distance_m,
+          elevation_gain_m,
+          elevation_loss_m,
+          alpha_used,
+          route_id,
+          scoring_formula_version: SCORING_VERSION,
         })
         .eq("event_id", event_id);
       if (upErr) return json({ error: upErr.message }, 500);
