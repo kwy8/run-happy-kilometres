@@ -343,6 +343,18 @@ function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
         ? evalDirection(latestPace, prevPace, { lowerIsBetter: true })
         : { direction: "na" as const, tone: "neutral" as Tone }),
     },
+    {
+      label: "Score",
+      latest: latest.performance_score != null ? latest.performance_score.toFixed(2) : "—",
+      previous: previous.performance_score != null ? previous.performance_score.toFixed(2) : "—",
+      delta:
+        latest.performance_score != null && previous.performance_score != null
+          ? formatDelta(latest.performance_score - previous.performance_score, (n) => n.toFixed(2))
+          : null,
+      ...(latest.performance_score != null && previous.performance_score != null
+        ? evalDirection(latest.performance_score, previous.performance_score, { lowerIsBetter: false })
+        : { direction: "na" as const, tone: "neutral" as Tone }),
+    },
   ];
 
   return (
