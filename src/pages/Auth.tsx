@@ -10,15 +10,17 @@ import { motion } from "framer-motion";
 import { Sun, ArrowLeft } from "lucide-react";
 
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [params] = useSearchParams();
+  const next = params.get("next") || "/dashboard";
+  const fromScan = next.startsWith("/scan/");
+  const newRunner = params.get("newRunner") === "1";
+  const [isSignUp, setIsSignUp] = useState(fromScan || newRunner);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const next = params.get("next") || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
