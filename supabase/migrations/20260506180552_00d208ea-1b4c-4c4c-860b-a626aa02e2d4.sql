@@ -1,0 +1,1 @@
+UPDATE public.events SET qr_enabled = false WHERE id = '31d7aa3f-d18c-4aa4-9ea9-776700621f93';
