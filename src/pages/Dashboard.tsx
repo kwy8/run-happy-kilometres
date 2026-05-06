@@ -338,12 +338,12 @@ function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
         : { direction: "na" as const, tone: "neutral" as Tone }),
     },
     {
-      label: "Score",
-      latest: latest.performance_score != null ? latest.performance_score.toFixed(2) : "—",
-      previous: previous.performance_score != null ? previous.performance_score.toFixed(2) : "—",
+      label: "RR",
+      latest: latest.performance_score != null ? formatRR(latest.performance_score) : "—",
+      previous: previous.performance_score != null ? formatRR(previous.performance_score) : "—",
       delta:
         latest.performance_score != null && previous.performance_score != null
-          ? formatDelta(latest.performance_score - previous.performance_score, (n) => n.toFixed(2))
+          ? formatDelta(latest.performance_score - previous.performance_score, (n) => formatRR(n))
           : null,
       ...(latest.performance_score != null && previous.performance_score != null
         ? evalDirection(latest.performance_score, previous.performance_score, { lowerIsBetter: false })
