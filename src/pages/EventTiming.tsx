@@ -178,14 +178,20 @@ export default function EventTiming() {
                     <div className="bg-white p-4 rounded inline-block">
                       <QRCodeSVG id="qr-start" value={startUrl} size={180} />
                     </div>
-                    <div><Button size="sm" variant="outline" onClick={() => downloadQr("start")}><Download className="w-3 h-3 mr-1" /> Download</Button></div>
+                    <div className="flex gap-2 justify-center">
+                      <Button size="sm" variant="outline" onClick={() => downloadQr("start")}><Download className="w-3 h-3 mr-1" /> Download</Button>
+                      <Button size="sm" variant="outline" asChild><a href={`/scan/${eventId}?p=start&preview=1`} target="_blank" rel="noreferrer">Preview ↗</a></Button>
+                    </div>
                   </div>
                   <div className="text-center space-y-2">
                     <div className="font-medium">Finish QR</div>
                     <div className="bg-white p-4 rounded inline-block">
                       <QRCodeSVG id="qr-finish" value={finishUrl} size={180} />
                     </div>
-                    <div><Button size="sm" variant="outline" onClick={() => downloadQr("finish")}><Download className="w-3 h-3 mr-1" /> Download</Button></div>
+                    <div className="flex gap-2 justify-center">
+                      <Button size="sm" variant="outline" onClick={() => downloadQr("finish")}><Download className="w-3 h-3 mr-1" /> Download</Button>
+                      <Button size="sm" variant="outline" asChild><a href={`/scan/${eventId}?p=finish&preview=1`} target="_blank" rel="noreferrer">Preview ↗</a></Button>
+                    </div>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={regenerate} disabled={busy}>
