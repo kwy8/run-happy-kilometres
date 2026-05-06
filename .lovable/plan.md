@@ -1,65 +1,78 @@
-# Result approval + QR landing previews
+## What's actually happening
 
-Two small additions to the timing flow.
+**1. "Approved results don't show up on the event page or profile"**
 
-## 1. Approve / reject results
+Two separate data tracks exist and they don't talk to each other:
 
-**Why it says "pending"**: when a runner scans Start then Finish, `scan-event` writes the result with `status = 'pending'`. That's by design — it means "timed, waiting for admin sign-off". Today nothing in the UI lets you advance it. We'll add that.
+- **`runs`** — casual self-logged runs. Used by Dashboard (recent runs, stats) and the EventDetails participants table.
+- **`event_results`** — QR-timed results with `status = pending → verified`. Used by the admin Timing page and (eventually) the published leaderboard.
 
-Status lifecycle:
+Today, when an admin approves an `event_results` row:
+- ✅ Its status flips to `verified` in the timing dashboard.
+- ❌ The event page (`EventDetails.tsx`) only reads from `runs`, so the verified time/distance never appears there.
+- ❌ The Dashboard only reads from `runs`, so the runner doesn't see the event in their recent activity / stats.
+- ❌ Even the timing page itself doesn't auto-refresh — you have to reload to see another admin's change.
 
-```text
-pending      → both scans recorded, awaiting admin review
-verified     → admin approved (counts toward leaderboards / scoring)
-incomplete   → only one scan (start OR finish), needs admin decision
-disqualified → admin marked invalid (won't count)
+So "it isn't updating" is correct — nothing wires verified `event_results` into the runner-facing surfaces.
+
+**2. "What if a runner scans a QR without an account?"**
+
+Right now `Scan.tsx` redirects them to `/auth?next=/scan/...`, which shows the **login** form by default. They can toggle to "Sign up" but there's no nudge, and no message explaining why they landed on a login page mid-scan. After signing up they'd hit the same scan URL and it would work — but the flow is unfriendly and unclear, which matches your earlier complaint about "why am I on the Lovable login page".
+
+---
+
+## Plan
+
+### A. Make verified results visible everywhere
+
+**`src/pages/EventDetails.tsx` — Participants table reads from `event_results` (verified) first, falls back to `runs`**
+
+- Fetch `event_results` for the event with `status = 'verified'` alongside `runs`.
+- For each participant, prefer the verified QR result (duration → time, distance from event/route) over any casual `runs` row.
+- Add a small badge next to the time: **"Official"** (sage) when from `event_results`, plain when from `runs`.
+- Sort participants by official time ascending when present.
+
+**`src/pages/Dashboard.tsx` — Recent activity includes verified event results**
+
+- In addition to `runs`, fetch the user's `event_results` where `status = 'verified'`, joined with `events.title`.
+- Merge into one chronological "Recent activity" list, with event results shown as `🏁 {event title} — {duration}` styled distinctly from casual runs.
+- Stats cards already aggregate `runs`; we'll leave personal stats unchanged for now (event results are official-only and shouldn't double-count). Will revisit if you want them folded in.
+
+**Realtime auto-refresh on three pages**
+
+Add a tiny `useRealtimeRefetch(table, refetchFn)` hook (subscribe to `postgres_changes` on `event_results`, call refetch on any change, cleanup on unmount). Wire it into:
+- `EventTiming.tsx` — so admins see each others' approvals instantly.
+- `EventDetails.tsx` — so participants see official times appear when admin approves.
+- `Dashboard.tsx` — so a runner sees their own approval land.
+
+Enable realtime via migration:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.event_results;
 ```
 
-### Changes
+### B. Friendlier first-time scan flow
 
-- **`src/pages/EventTiming.tsx`** — in the Results table, add an Actions column with:
-  - `pending` row → **Approve** (→ `verified`) and **Disqualify** buttons
-  - `incomplete` row → **Approve as-is**, **Disqualify**, plus an inline "set missing time" mini-form (datetime input for whichever of start/finish is missing) — saving recomputes duration via the existing `recompute_event_result` trigger
-  - `verified` / `disqualified` row → **Revert to pending**
-  - Status displayed as a coloured badge (sage = verified, coral = pending, muted = disqualified, amber = incomplete)
-- All actions are plain `supabase.from("event_results").update({ status, [start_time|finish_time] })` — admin RLS already permits this, and the existing `recompute_event_result` trigger recomputes `duration_s`, `performance_score`, `session_load`.
-- Bulk action: an **"Approve all pending"** button above the table for the common case.
-- Publishing already exists; we'll surface a small hint: "Only verified results appear in published standings" and (optionally) filter the published view to `status = 'verified'` later — out of scope for this change.
+**`src/pages/Auth.tsx`**
+- Read `?next=` and detect when it points at `/scan/...`. If so, show a banner at the top:
+  > *You're being checked in for an event. Sign in or create an account to record your time.*
+- Default the form to **Sign up** (not Sign in) when arriving from a scan link, since a brand-new runner is the more likely case. Toggle still available.
+- After successful signup, redirect to `next` exactly as today (already works).
 
-### No schema changes
-The `status` column and admin RLS already support all of this.
+**`src/pages/Scan.tsx`**
+- Before redirecting to `/auth`, append `&newRunner=1` so the auth page knows to default to Sign up.
 
-## 2. Preview the scan landing pages
+No backend or RLS changes needed for this part — `handle_new_user` already provisions a profile on signup, and the existing `/scan/.../?t=...` URL is reusable post-signup.
 
-**Why a preview is needed**: visiting the real `/scan/...?t=...` URL writes a real `event_results` row and consumes your start/finish. We need a non-destructive way for an admin to see exactly what runners see.
+### Out of scope
+- Folding `event_results` into personal stats / leaderboard scoring (separate decision — your memory says leaderboards are strictly opt-in and QR results currently feed scoring via `event_results.performance_score`, untouched here).
+- Email magic-link or passwordless flows for first-time scanners.
+- Automatic profile creation for an *unauthenticated* scan (would require a guest-token flow — flagging as a future option if you want it).
 
-### Approach: `?preview=1` flag on `/scan`
-
-- In `src/pages/Scan.tsx`, if `searchParams.get("preview") === "1"` AND the user `isAdmin`:
-  - **Skip** the `scan-event` edge function call entirely
-  - Synthesise local mock data:
-    - `start` preview → `startTime = new Date()`, live timer counts up from 0 in real time (so the admin sees the welcome page + ticking clock animating exactly as a runner would)
-    - `finish` preview → `finishDuration = 1847` (≈ 30:47), `resultId = null` so the RPE button is hidden
-  - Show a small dismissable banner at the top: *"Preview mode — nothing is being recorded."*
-- Non-admins hitting `?preview=1` get the normal scan flow (no privilege leak).
-
-### Entry points in `src/pages/EventTiming.tsx`
-
-Under each QR code, alongside the existing **Download** button, add **Preview** buttons:
-
-```text
-[ Download ]  [ Preview start landing ↗ ]
-[ Download ]  [ Preview finish landing ↗ ]
-```
-
-They open `/scan/:eventId?p=start&preview=1` (and `p=finish`) in a new tab. No `t=` token needed since the edge function isn't called.
-
-## Out of scope
-- Auto-verifying results (e.g. by RPE or duration sanity checks) — admins approve manually for now
-- Filtering published results to `verified` only — discuss separately
-- Email/notification when a result is approved
-- Bulk-import or CSV upload for incomplete fix-ups
-
-## Files touched
-- `src/pages/EventTiming.tsx` — actions column, approve/disqualify/revert buttons, inline missing-time form, status badges, "Approve all pending", "Preview" links under each QR
-- `src/pages/Scan.tsx` — admin-only `?preview=1` short-circuit with mock state and a "Preview mode" banner
+### Files touched
+- `src/pages/EventDetails.tsx` — read verified `event_results`, "Official" badge, official-time sort.
+- `src/pages/Dashboard.tsx` — merge verified `event_results` into recent activity.
+- `src/pages/EventTiming.tsx` — realtime auto-refresh.
+- `src/pages/Auth.tsx` — scan-aware banner + default-to-signup.
+- `src/pages/Scan.tsx` — pass `newRunner=1` on auth redirect.
+- `src/hooks/useRealtimeRefetch.ts` *(new, ~20 lines)*.
+- One migration to add `event_results` to the realtime publication.

@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus, Flag } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
+import { Badge } from "@/components/ui/badge";
 
 interface Run {
   id: string;
@@ -27,6 +29,16 @@ interface UpcomingEvent {
   location: string | null;
 }
 
+interface OfficialResult {
+  id: string;
+  event_id: string;
+  event_title: string;
+  event_date: string;
+  duration_s: number | null;
+  distance_m: number | null;
+  performance_score: number | null;
+}
+
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +49,8 @@ export default function Dashboard() {
   const [joining, setJoining] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
+  const [officialResults, setOfficialResults] = useState<OfficialResult[]>([]);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
@@ -44,6 +58,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) fetchData();
   }, [user]);
+
+  useRealtimeRefetch("event_results", () => {
+    if (user) fetchData();
+  });
 
   const fetchData = async () => {
     setLoadingData(true);
@@ -61,6 +79,28 @@ export default function Dashboard() {
     ]);
     if (runsRes.data) setRuns(runsRes.data);
     if (profileRes.data) setProfile(profileRes.data);
+
+    // Verified official event results for this user
+    const { data: orData } = await supabase
+      .from("event_results")
+      .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date)")
+      .eq("user_id", user!.id)
+      .eq("status", "verified")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (orData) {
+      setOfficialResults(
+        orData.map((r: any) => ({
+          id: r.id,
+          event_id: r.event_id,
+          event_title: r.events?.title || "Event",
+          event_date: r.events?.event_date || "",
+          duration_s: r.duration_s,
+          distance_m: r.distance_m,
+          performance_score: r.performance_score,
+        }))
+      );
+    }
     if (eventRes.data) {
       setUpcomingEvent(eventRes.data);
       const { data: joinData } = await supabase
@@ -236,6 +276,40 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mt-3">No previous run yet — log another to see your progress!</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Official event results */}
+        {officialResults.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Flag className="w-4 h-4 text-primary" /> Official Event Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-border">
+                {officialResults.map((r) => (
+                  <li key={r.id} className="py-2 flex items-center justify-between text-sm">
+                    <div className="min-w-0">
+                      <Link to={`/events/${r.event_id}`} className="font-medium text-foreground hover:underline truncate">
+                        {r.event_title}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">
+                        {r.event_date && new Date(r.event_date).toLocaleDateString()}
+                        {r.distance_m ? ` · ${(r.distance_m / 1000).toFixed(1)} km` : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">Verified</Badge>
+                      <span className="font-bold tabular-nums text-foreground">
+                        {r.duration_s != null ? formatMinSec(r.duration_s / 60) : "—"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         )}

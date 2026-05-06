@@ -11,6 +11,8 @@ import { Sun, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
+import { Badge } from "@/components/ui/badge";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
 interface EventData {
   id: string;
@@ -27,6 +29,7 @@ interface Participant {
   display_name: string;
   distance_km?: number;
   time_taken_minutes?: number;
+  official?: boolean;
 }
 
 export default function EventDetails() {
@@ -45,6 +48,10 @@ export default function EventDetails() {
   useEffect(() => {
     if (user && id) fetchData();
   }, [user, id]);
+
+  useRealtimeRefetch("event_results", () => {
+    if (user && id) fetchData();
+  });
 
   const fetchData = async () => {
     setLoadingData(true);
@@ -69,17 +76,22 @@ export default function EventDetails() {
       setHasJoined(parts.some((p) => p.user_id === user!.id));
 
       const userIds = parts.map((p) => p.user_id);
-      const [{ data: profilesData }, { data: runsData }] = await Promise.all([
+      const [{ data: profilesData }, { data: runsData }, { data: resultsData }] = await Promise.all([
         supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
         supabase
           .from("runs")
           .select("user_id, distance_km, time_taken_minutes")
           .eq("event_id", id!)
           .in("user_id", userIds),
+        supabase
+          .from("event_results")
+          .select("user_id, duration_s, distance_m, status")
+          .eq("event_id", id!)
+          .eq("status", "verified")
+          .in("user_id", userIds),
       ]);
 
       const profileMap = new Map((profilesData || []).map((p) => [p.user_id, p.display_name]));
-      // If a user has multiple runs for the event, pick the longest distance
       const runMap = new Map<string, { distance_km: number; time_taken_minutes: number | null }>();
       (runsData || []).forEach((r) => {
         const existing = runMap.get(r.user_id);
@@ -87,15 +99,35 @@ export default function EventDetails() {
           runMap.set(r.user_id, { distance_km: r.distance_km, time_taken_minutes: r.time_taken_minutes });
         }
       });
+      // Verified official results take precedence
+      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number }>();
+      (resultsData || []).forEach((r: any) => {
+        officialMap.set(r.user_id, {
+          distance_km: r.distance_m ? r.distance_m / 1000 : undefined,
+          time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : undefined,
+        });
+      });
 
-      setParticipants(
-        parts.map((p) => ({
+      const enriched: Participant[] = parts.map((p) => {
+        const off = officialMap.get(p.user_id);
+        const casual = runMap.get(p.user_id);
+        return {
           user_id: p.user_id,
           display_name: profileMap.get(p.user_id) || "Runner",
-          distance_km: runMap.get(p.user_id)?.distance_km,
-          time_taken_minutes: runMap.get(p.user_id)?.time_taken_minutes ?? undefined,
-        }))
-      );
+          distance_km: off?.distance_km ?? casual?.distance_km,
+          time_taken_minutes: off?.time_taken_minutes ?? casual?.time_taken_minutes ?? undefined,
+          official: !!off,
+        };
+      });
+      // Sort: official+time first (asc), then others
+      enriched.sort((a, b) => {
+        if (a.official && !b.official) return -1;
+        if (!a.official && b.official) return 1;
+        const at = a.time_taken_minutes ?? Infinity;
+        const bt = b.time_taken_minutes ?? Infinity;
+        return at - bt;
+      });
+      setParticipants(enriched);
     } else {
       setParticipants([]);
       setHasJoined(false);
@@ -190,7 +222,14 @@ export default function EventDetails() {
                 <TableBody>
                   {participants.map((p) => (
                     <TableRow key={p.user_id}>
-                      <TableCell className="font-medium">{p.display_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          {p.display_name}
+                          {p.official && (
+                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">Official</Badge>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
                       <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                       <TableCell>
