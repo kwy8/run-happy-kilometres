@@ -222,7 +222,14 @@ export default function EventDetails() {
                 <TableBody>
                   {participants.map((p) => (
                     <TableRow key={p.user_id}>
-                      <TableCell className="font-medium">{p.display_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          {p.display_name}
+                          {p.official && (
+                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">Official</Badge>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
                       <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                       <TableCell>
