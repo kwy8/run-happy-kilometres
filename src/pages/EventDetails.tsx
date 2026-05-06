@@ -221,7 +221,7 @@ export default function EventDetails() {
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
