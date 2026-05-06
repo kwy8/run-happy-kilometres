@@ -17,10 +17,13 @@ import { toast } from "sonner";
 type Route = {
   id: string;
   name: string;
+  description: string | null;
   surface_type: string;
   distance_m: number | null;
   elevation_gain_m: number | null;
+  elevation_loss_m: number | null;
   technicality_rating: number | null;
+  terrain_notes: string | null;
   current_alpha: number;
   suggested_alpha: number | null;
   alpha_status: string;
@@ -70,6 +73,44 @@ export default function AdminCalibration() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [manualAlpha, setManualAlpha] = useState("");
   const [editReason, setEditReason] = useState("");
+  const [details, setDetails] = useState({
+    name: "", description: "", distance_m: "", elevation_gain_m: "", elevation_loss_m: "",
+    surface_type: "road", technicality_rating: "3", terrain_notes: "",
+  });
+
+  function openEdit(r: Route) {
+    setEditingRoute(r);
+    setManualAlpha(String(r.current_alpha));
+    setEditReason("");
+    setDetails({
+      name: r.name ?? "",
+      description: r.description ?? "",
+      distance_m: r.distance_m?.toString() ?? "",
+      elevation_gain_m: r.elevation_gain_m?.toString() ?? "",
+      elevation_loss_m: r.elevation_loss_m?.toString() ?? "",
+      surface_type: r.surface_type ?? "road",
+      technicality_rating: r.technicality_rating?.toString() ?? "3",
+      terrain_notes: r.terrain_notes ?? "",
+    });
+  }
+
+  async function saveDetails() {
+    if (!editingRoute) return;
+    const { error } = await supabase.from("routes").update({
+      name: details.name,
+      description: details.description || null,
+      distance_m: details.distance_m ? parseInt(details.distance_m) : null,
+      elevation_gain_m: details.elevation_gain_m ? parseInt(details.elevation_gain_m) : null,
+      elevation_loss_m: details.elevation_loss_m ? parseInt(details.elevation_loss_m) : null,
+      surface_type: details.surface_type as any,
+      technicality_rating: details.technicality_rating ? parseInt(details.technicality_rating) : null,
+      terrain_notes: details.terrain_notes || null,
+    }).eq("id", editingRoute.id);
+    if (error) return toast.error(error.message);
+    toast.success("Route details saved");
+    setEditingRoute(null);
+    await load();
+  }
 
   const [creating, setCreating] = useState(false);
   const [newRoute, setNewRoute] = useState({
@@ -208,7 +249,7 @@ export default function AdminCalibration() {
                               onClick={() => decide("reject", r.id, { experiment_id: pending.id })}>Reject</Button>
                           </>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingRoute(r); setManualAlpha(String(r.current_alpha)); setEditReason(""); }}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>Edit</Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -269,9 +310,39 @@ export default function AdminCalibration() {
 
       {/* Edit dialog */}
       <Dialog open={!!editingRoute} onOpenChange={(o) => !o && setEditingRoute(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingRoute?.name}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Route details</h3>
+            <div><Label>Name</Label><Input value={details.name} onChange={(e) => setDetails({ ...details, name: e.target.value })} /></div>
+            <div><Label>Description</Label><Textarea value={details.description} onChange={(e) => setDetails({ ...details, description: e.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label>Distance (m)</Label><Input type="number" value={details.distance_m} onChange={(e) => setDetails({ ...details, distance_m: e.target.value })} /></div>
+              <div><Label>Gain (m)</Label><Input type="number" value={details.elevation_gain_m} onChange={(e) => setDetails({ ...details, elevation_gain_m: e.target.value })} /></div>
+              <div><Label>Loss (m)</Label><Input type="number" value={details.elevation_loss_m} onChange={(e) => setDetails({ ...details, elevation_loss_m: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Surface</Label>
+                <Select value={details.surface_type} onValueChange={(v) => setDetails({ ...details, surface_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["road", "trail", "mixed", "track", "gravel"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Technicality (1–5)</Label>
+                <Input type="number" min="1" max="5" value={details.technicality_rating} onChange={(e) => setDetails({ ...details, technicality_rating: e.target.value })} />
+              </div>
+            </div>
+            <div><Label>Terrain notes</Label><Textarea value={details.terrain_notes} onChange={(e) => setDetails({ ...details, terrain_notes: e.target.value })} /></div>
+            <Button onClick={saveDetails}>Save route details</Button>
+          </section>
+
+          <section className="space-y-3 mt-6 pt-6 border-t border-border">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alpha controls</h3>
             <div>
               <Label>Manual α override</Label>
               <Input type="number" step="0.1" value={manualAlpha} onChange={(e) => setManualAlpha(e.target.value)} />
@@ -280,14 +351,14 @@ export default function AdminCalibration() {
               <Label>Reason (optional)</Label>
               <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} />
             </div>
-          </div>
-          <DialogFooter className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => editingRoute && decide("reset", editingRoute.id, { reason: editReason })}>Reset to 5</Button>
-            <Button variant="outline" onClick={() => editingRoute && decide("mark_calibrated", editingRoute.id)}>Mark calibrated</Button>
-            <Button onClick={() => editingRoute && decide("manual", editingRoute.id, { new_alpha: parseFloat(manualAlpha), reason: editReason })}>
-              Apply override
-            </Button>
-          </DialogFooter>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => editingRoute && decide("reset", editingRoute.id, { reason: editReason })}>Reset to 5</Button>
+              <Button variant="outline" onClick={() => editingRoute && decide("mark_calibrated", editingRoute.id)}>Mark calibrated</Button>
+              <Button onClick={() => editingRoute && decide("manual", editingRoute.id, { new_alpha: parseFloat(manualAlpha), reason: editReason })}>
+                Apply α override
+              </Button>
+            </div>
+          </section>
         </DialogContent>
       </Dialog>
 
