@@ -146,6 +146,11 @@ export default function Scan() {
     const elapsedSec = startTime ? (now - startTime.getTime()) / 1000 : 0;
     return (
       <AppLayout>
+        {isPreview && (
+          <div className="max-w-md mx-auto mb-3 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200 text-center">
+            Preview mode — nothing is being recorded.
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
