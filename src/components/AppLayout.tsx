@@ -17,6 +17,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { label: "Dashboard", path: "/dashboard" },
     { label: "Events", path: "/events" },
     { label: "Leaderboard", path: "/leaderboard" },
+    { label: "Profile", path: "/profile" },
   ];
 
   if (isAdmin) {
