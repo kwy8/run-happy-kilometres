@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      alpha_experiments: {
+        Row: {
+          approved_at: string | null
+          confidence_score: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          metrics: Json | null
+          notes: string | null
+          previous_alpha: number | null
+          proposed_alpha: number
+          reason: string | null
+          rejected_at: string | null
+          reviewer_id: string | null
+          route_id: string
+          sample_size: number | null
+          status: Database["public"]["Enums"]["experiment_status"]
+        }
+        Insert: {
+          approved_at?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metrics?: Json | null
+          notes?: string | null
+          previous_alpha?: number | null
+          proposed_alpha: number
+          reason?: string | null
+          rejected_at?: string | null
+          reviewer_id?: string | null
+          route_id: string
+          sample_size?: number | null
+          status?: Database["public"]["Enums"]["experiment_status"]
+        }
+        Update: {
+          approved_at?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metrics?: Json | null
+          notes?: string | null
+          previous_alpha?: number | null
+          proposed_alpha?: number
+          reason?: string | null
+          rejected_at?: string | null
+          reviewer_id?: string | null
+          route_id?: string
+          sample_size?: number | null
+          status?: Database["public"]["Enums"]["experiment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alpha_experiments_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alpha_experiments_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           event_id: string
@@ -63,8 +132,10 @@ export type Database = {
           finish_time: string | null
           id: string
           performance_score: number | null
+          route_id: string | null
           rpe: number | null
           rpe_notes: string | null
+          scoring_formula_version: number
           session_load: number | null
           source: string
           start_time: string | null
@@ -84,8 +155,10 @@ export type Database = {
           finish_time?: string | null
           id?: string
           performance_score?: number | null
+          route_id?: string | null
           rpe?: number | null
           rpe_notes?: string | null
+          scoring_formula_version?: number
           session_load?: number | null
           source?: string
           start_time?: string | null
@@ -105,8 +178,10 @@ export type Database = {
           finish_time?: string | null
           id?: string
           performance_score?: number | null
+          route_id?: string | null
           rpe?: number | null
           rpe_notes?: string | null
+          scoring_formula_version?: number
           session_load?: number | null
           source?: string
           start_time?: string | null
@@ -129,6 +204,20 @@ export type Database = {
             referencedRelation: "events_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "event_results_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_results_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       events: {
@@ -148,6 +237,7 @@ export type Database = {
           route_distance_m: number | null
           route_elevation_gain_m: number | null
           route_elevation_loss_m: number | null
+          route_id: string | null
           start_qr_token: string | null
           title: string
         }
@@ -167,6 +257,7 @@ export type Database = {
           route_distance_m?: number | null
           route_elevation_gain_m?: number | null
           route_elevation_loss_m?: number | null
+          route_id?: string | null
           start_qr_token?: string | null
           title: string
         }
@@ -186,10 +277,26 @@ export type Database = {
           route_distance_m?: number | null
           route_elevation_gain_m?: number | null
           route_elevation_loss_m?: number | null
+          route_id?: string | null
           start_qr_token?: string | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -215,6 +322,126 @@ export type Database = {
           show_on_leaderboard?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      route_alpha_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          experiment_id: string | null
+          id: string
+          new_alpha: number
+          previous_alpha: number | null
+          reason: string | null
+          route_id: string
+          source: Database["public"]["Enums"]["alpha_history_source"]
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          experiment_id?: string | null
+          id?: string
+          new_alpha: number
+          previous_alpha?: number | null
+          reason?: string | null
+          route_id: string
+          source: Database["public"]["Enums"]["alpha_history_source"]
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          experiment_id?: string | null
+          id?: string
+          new_alpha?: number
+          previous_alpha?: number | null
+          reason?: string | null
+          route_id?: string
+          source?: Database["public"]["Enums"]["alpha_history_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_alpha_history_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_alpha_history_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          alpha_last_updated_at: string | null
+          alpha_notes: string | null
+          alpha_status: Database["public"]["Enums"]["alpha_status"]
+          calibration_confidence: number | null
+          calibration_sample_size: number
+          created_at: string
+          created_by: string | null
+          current_alpha: number
+          description: string | null
+          distance_m: number | null
+          elevation_gain_m: number | null
+          elevation_loss_m: number | null
+          gpx_file_url: string | null
+          id: string
+          name: string
+          suggested_alpha: number | null
+          surface_type: Database["public"]["Enums"]["surface_type"]
+          technicality_rating: number | null
+          terrain_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          alpha_last_updated_at?: string | null
+          alpha_notes?: string | null
+          alpha_status?: Database["public"]["Enums"]["alpha_status"]
+          calibration_confidence?: number | null
+          calibration_sample_size?: number
+          created_at?: string
+          created_by?: string | null
+          current_alpha?: number
+          description?: string | null
+          distance_m?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          gpx_file_url?: string | null
+          id?: string
+          name: string
+          suggested_alpha?: number | null
+          surface_type?: Database["public"]["Enums"]["surface_type"]
+          technicality_rating?: number | null
+          terrain_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alpha_last_updated_at?: string | null
+          alpha_notes?: string | null
+          alpha_status?: Database["public"]["Enums"]["alpha_status"]
+          calibration_confidence?: number | null
+          calibration_sample_size?: number
+          created_at?: string
+          created_by?: string | null
+          current_alpha?: number
+          description?: string | null
+          distance_m?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          gpx_file_url?: string | null
+          id?: string
+          name?: string
+          suggested_alpha?: number | null
+          surface_type?: Database["public"]["Enums"]["surface_type"]
+          technicality_rating?: number | null
+          terrain_notes?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -343,6 +570,57 @@ export type Database = {
         }
         Relationships: []
       }
+      routes_public: {
+        Row: {
+          alpha_status: Database["public"]["Enums"]["alpha_status"] | null
+          created_at: string | null
+          current_alpha: number | null
+          description: string | null
+          distance_m: number | null
+          elevation_gain_m: number | null
+          elevation_loss_m: number | null
+          gpx_file_url: string | null
+          id: string | null
+          name: string | null
+          surface_type: Database["public"]["Enums"]["surface_type"] | null
+          technicality_rating: number | null
+          terrain_notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alpha_status?: Database["public"]["Enums"]["alpha_status"] | null
+          created_at?: string | null
+          current_alpha?: number | null
+          description?: string | null
+          distance_m?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          gpx_file_url?: string | null
+          id?: string | null
+          name?: string | null
+          surface_type?: Database["public"]["Enums"]["surface_type"] | null
+          technicality_rating?: number | null
+          terrain_notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alpha_status?: Database["public"]["Enums"]["alpha_status"] | null
+          created_at?: string | null
+          current_alpha?: number | null
+          description?: string | null
+          distance_m?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          gpx_file_url?: string | null
+          id?: string | null
+          name?: string | null
+          surface_type?: Database["public"]["Enums"]["surface_type"] | null
+          technicality_rating?: number | null
+          terrain_notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       event_results_published: { Args: { _event_id: string }; Returns: boolean }
@@ -355,7 +633,16 @@ export type Database = {
       }
     }
     Enums: {
+      alpha_history_source: "manual" | "experiment" | "reset"
+      alpha_status: "default" | "testing" | "calibrated" | "needs_review"
       app_role: "admin" | "user"
+      experiment_status:
+        | "proposed"
+        | "testing"
+        | "approved"
+        | "rejected"
+        | "archived"
+      surface_type: "road" | "trail" | "mixed" | "track" | "gravel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -483,7 +770,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alpha_history_source: ["manual", "experiment", "reset"],
+      alpha_status: ["default", "testing", "calibrated", "needs_review"],
       app_role: ["admin", "user"],
+      experiment_status: [
+        "proposed",
+        "testing",
+        "approved",
+        "rejected",
+        "archived",
+      ],
+      surface_type: ["road", "trail", "mixed", "track", "gravel"],
     },
   },
 } as const
