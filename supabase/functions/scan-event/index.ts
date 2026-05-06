@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,14 +29,11 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(
-      token,
-    );
-    if (claimsErr || !claims?.claims?.sub) {
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) {
       return json({ error: "Unauthorized" }, 401);
     }
-    const userId = claims.claims.sub as string;
+    const userId = userData.user.id;
 
     const body = (await req.json().catch(() => ({}))) as Body;
     const { event_id, token: scanToken, phase } = body;
