@@ -11,6 +11,7 @@ import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import AddRun from "./pages/AddRun";
 import Leaderboard from "./pages/Leaderboard";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCalibration from "./pages/AdminCalibration";
 import CreateEvent from "./pages/CreateEvent";
