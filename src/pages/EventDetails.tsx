@@ -22,6 +22,7 @@ interface EventData {
   route: string | null;
   location: string | null;
   gpx_file_url: string | null;
+  route_distance_m: number | null;
 }
 
 interface Participant {
@@ -29,7 +30,8 @@ interface Participant {
   display_name: string;
   distance_km?: number;
   time_taken_minutes?: number;
-  official?: boolean;
+  performance_score?: number | null;
+  rpe_notes?: string | null;
 }
 
 export default function EventDetails() {
@@ -85,7 +87,7 @@ export default function EventDetails() {
           .in("user_id", userIds),
         supabase
           .from("event_results")
-          .select("user_id, duration_s, distance_m, status")
+          .select("user_id, duration_s, distance_m, performance_score, rpe_notes, status")
           .eq("event_id", id!)
           .eq("status", "verified")
           .in("user_id", userIds),
@@ -100,11 +102,14 @@ export default function EventDetails() {
         }
       });
       // Verified official results take precedence
-      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number }>();
+      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number; performance_score?: number | null; rpe_notes?: string | null }>();
+      const eventDistanceKm = eventData.route_distance_m ? eventData.route_distance_m / 1000 : undefined;
       (resultsData || []).forEach((r: any) => {
         officialMap.set(r.user_id, {
-          distance_km: r.distance_m ? r.distance_m / 1000 : undefined,
+          distance_km: r.distance_m ? r.distance_m / 1000 : eventDistanceKm,
           time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : undefined,
+          performance_score: r.performance_score,
+          rpe_notes: r.rpe_notes,
         });
       });
 
@@ -116,13 +121,11 @@ export default function EventDetails() {
           display_name: profileMap.get(p.user_id) || "Runner",
           distance_km: off?.distance_km ?? casual?.distance_km,
           time_taken_minutes: off?.time_taken_minutes ?? casual?.time_taken_minutes ?? undefined,
-          official: !!off,
+          performance_score: off?.performance_score ?? null,
+          rpe_notes: off?.rpe_notes ?? null,
         };
       });
-      // Sort: official+time first (asc), then others
       enriched.sort((a, b) => {
-        if (a.official && !b.official) return -1;
-        if (!a.official && b.official) return 1;
         const at = a.time_taken_minutes ?? Infinity;
         const bt = b.time_taken_minutes ?? Infinity;
         return at - bt;
@@ -217,25 +220,26 @@ export default function EventDetails() {
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {participants.map((p) => (
                     <TableRow key={p.user_id}>
-                      <TableCell className="font-medium">
-                        <span className="inline-flex items-center gap-2">
-                          {p.display_name}
-                          {p.official && (
-                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">Official</Badge>
-                          )}
-                        </span>
-                      </TableCell>
+                      <TableCell className="font-medium">{p.display_name}</TableCell>
                       <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
                       <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                       <TableCell>
                         {p.distance_km && p.time_taken_minutes
                           ? formatPace(p.time_taken_minutes / p.distance_km)
                           : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {p.performance_score != null ? p.performance_score.toFixed(2) : "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
+                        {p.rpe_notes || "—"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -244,6 +248,8 @@ export default function EventDetails() {
             )}
           </CardContent>
         </Card>
+
+        <EventComments eventId={id!} currentUserId={user!.id} />
       </div>
     </AppLayout>
   );
