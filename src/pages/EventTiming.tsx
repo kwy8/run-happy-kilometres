@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Sun, RefreshCw, Download, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
 interface EventRow {
   id: string;
@@ -58,6 +59,10 @@ export default function EventTiming() {
   }, [user, loading, isAdmin, navigate]);
 
   useEffect(() => { if (user && isAdmin && eventId) fetchData(); }, [user, isAdmin, eventId]);
+
+  useRealtimeRefetch("event_results", () => {
+    if (user && isAdmin && eventId) fetchData();
+  });
 
   const fetchData = async () => {
     setLoadingData(true);
