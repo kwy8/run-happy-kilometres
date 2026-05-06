@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus, Flag } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
+import { Badge } from "@/components/ui/badge";
 
 interface Run {
   id: string;
@@ -27,6 +29,16 @@ interface UpcomingEvent {
   location: string | null;
 }
 
+interface OfficialResult {
+  id: string;
+  event_id: string;
+  event_title: string;
+  event_date: string;
+  duration_s: number | null;
+  distance_m: number | null;
+  performance_score: number | null;
+}
+
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +49,8 @@ export default function Dashboard() {
   const [joining, setJoining] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
+  const [officialResults, setOfficialResults] = useState<OfficialResult[]>([]);
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
@@ -44,6 +58,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) fetchData();
   }, [user]);
+
+  useRealtimeRefetch("event_results", () => {
+    if (user) fetchData();
+  });
 
   const fetchData = async () => {
     setLoadingData(true);
