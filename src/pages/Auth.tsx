@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get("next") || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +27,11 @@ export default function Auth() {
       if (isSignUp) {
         await signUp(email, password, displayName);
         toast.success("Welcome to Random Run Club! You're all set. 🎉");
+        navigate(next);
       } else {
         await signIn(email, password);
         toast.success("Welcome back, runner! 🏃");
-        navigate("/dashboard");
+        navigate(next);
       }
     } catch (err: any) {
       toast.error(err.message);
