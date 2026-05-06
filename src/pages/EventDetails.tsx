@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +31,7 @@ interface Participant {
 
 export default function EventDetails() {
   const { id } = useParams<{ id: string }>();
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [event, setEvent] = useState<EventData | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -155,7 +156,7 @@ export default function EventDetails() {
           </Card>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {hasJoined ? (
             <>
               <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
@@ -163,6 +164,11 @@ export default function EventDetails() {
             </>
           ) : (
             <Button onClick={joinEvent}>Join Event</Button>
+          )}
+          {isAdmin && (
+            <Link to={`/admin/events/${id}/timing`}>
+              <Button variant="outline"><Settings className="w-4 h-4 mr-1" /> Timing & Results</Button>
+            </Link>
           )}
         </div>
 
