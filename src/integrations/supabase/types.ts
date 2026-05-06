@@ -41,40 +41,152 @@ export type Database = {
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_results: {
+        Row: {
+          admin_note: string | null
+          alpha_used: number | null
+          created_at: string
+          distance_m: number | null
+          duration_s: number | null
+          elevation_gain_m: number | null
+          elevation_loss_m: number | null
+          event_id: string
+          finish_time: string | null
+          id: string
+          performance_score: number | null
+          rpe: number | null
+          rpe_notes: string | null
+          session_load: number | null
+          source: string
+          start_time: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          alpha_used?: number | null
+          created_at?: string
+          distance_m?: number | null
+          duration_s?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          event_id: string
+          finish_time?: string | null
+          id?: string
+          performance_score?: number | null
+          rpe?: number | null
+          rpe_notes?: string | null
+          session_load?: number | null
+          source?: string
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          alpha_used?: number | null
+          created_at?: string
+          distance_m?: number | null
+          duration_s?: number | null
+          elevation_gain_m?: number | null
+          elevation_loss_m?: number | null
+          event_id?: string
+          finish_time?: string | null
+          id?: string
+          performance_score?: number | null
+          rpe?: number | null
+          rpe_notes?: string | null
+          session_load?: number | null
+          source?: string
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_results_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_results_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       events: {
         Row: {
+          alpha: number
           created_at: string
           created_by: string | null
           event_date: string
+          finish_qr_token: string | null
           gpx_file_url: string | null
           id: string
           location: string | null
           meetup_time: string | null
+          qr_enabled: boolean
+          results_published: boolean
           route: string | null
+          route_distance_m: number | null
+          route_elevation_gain_m: number | null
+          route_elevation_loss_m: number | null
+          start_qr_token: string | null
           title: string
         }
         Insert: {
+          alpha?: number
           created_at?: string
           created_by?: string | null
           event_date: string
+          finish_qr_token?: string | null
           gpx_file_url?: string | null
           id?: string
           location?: string | null
           meetup_time?: string | null
+          qr_enabled?: boolean
+          results_published?: boolean
           route?: string | null
+          route_distance_m?: number | null
+          route_elevation_gain_m?: number | null
+          route_elevation_loss_m?: number | null
+          start_qr_token?: string | null
           title: string
         }
         Update: {
+          alpha?: number
           created_at?: string
           created_by?: string | null
           event_date?: string
+          finish_qr_token?: string | null
           gpx_file_url?: string | null
           id?: string
           location?: string | null
           meetup_time?: string | null
+          qr_enabled?: boolean
+          results_published?: boolean
           route?: string | null
+          route_distance_m?: number | null
+          route_elevation_gain_m?: number | null
+          route_elevation_loss_m?: number | null
+          start_qr_token?: string | null
           title?: string
         }
         Relationships: []
@@ -148,6 +260,13 @@ export type Database = {
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "runs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -170,9 +289,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      events_public: {
+        Row: {
+          alpha: number | null
+          created_at: string | null
+          created_by: string | null
+          event_date: string | null
+          gpx_file_url: string | null
+          id: string | null
+          location: string | null
+          meetup_time: string | null
+          qr_enabled: boolean | null
+          results_published: boolean | null
+          route: string | null
+          route_distance_m: number | null
+          route_elevation_gain_m: number | null
+          route_elevation_loss_m: number | null
+          title: string | null
+        }
+        Insert: {
+          alpha?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          event_date?: string | null
+          gpx_file_url?: string | null
+          id?: string | null
+          location?: string | null
+          meetup_time?: string | null
+          qr_enabled?: boolean | null
+          results_published?: boolean | null
+          route?: string | null
+          route_distance_m?: number | null
+          route_elevation_gain_m?: number | null
+          route_elevation_loss_m?: number | null
+          title?: string | null
+        }
+        Update: {
+          alpha?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          event_date?: string | null
+          gpx_file_url?: string | null
+          id?: string | null
+          location?: string | null
+          meetup_time?: string | null
+          qr_enabled?: boolean | null
+          results_published?: boolean | null
+          route?: string | null
+          route_distance_m?: number | null
+          route_elevation_gain_m?: number | null
+          route_elevation_loss_m?: number | null
+          title?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      event_results_published: { Args: { _event_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
