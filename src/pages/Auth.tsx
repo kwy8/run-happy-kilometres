@@ -71,6 +71,11 @@ export default function Auth() {
               </p>
           </CardHeader>
           <CardContent>
+            {fromScan && (
+              <div className="mb-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground text-center">
+                You're being checked in for an event. Sign in or create an account to record your time.
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && (
                 <div className="space-y-2">
