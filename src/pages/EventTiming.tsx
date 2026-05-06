@@ -238,6 +238,7 @@ export default function EventTiming() {
           <CardHeader><CardTitle className="flex items-center justify-between">
             Results ({results.length})
             <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={approveAllPending} disabled={busy}>Approve all pending</Button>
               {ev.results_published
                 ? <Button size="sm" variant="outline" onClick={() => publish(false)} disabled={busy}><XCircle className="w-3 h-3 mr-1" /> Unpublish</Button>
                 : <Button size="sm" onClick={() => publish(true)} disabled={busy}><CheckCircle2 className="w-3 h-3 mr-1" /> Publish</Button>}
@@ -248,20 +249,50 @@ export default function EventTiming() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Runner</TableHead><TableHead>Start</TableHead><TableHead>Finish</TableHead>
-                  <TableHead>Duration</TableHead><TableHead>RPE</TableHead><TableHead>Score</TableHead><TableHead>Status</TableHead>
+                  <TableHead>Duration</TableHead><TableHead>RPE</TableHead><TableHead>Score</TableHead>
+                  <TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {results.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.display_name}</TableCell>
-                      <TableCell>{r.start_time ? new Date(r.start_time).toLocaleTimeString() : "—"}</TableCell>
-                      <TableCell>{r.finish_time ? new Date(r.finish_time).toLocaleTimeString() : "—"}</TableCell>
-                      <TableCell>{fmtDur(r.duration_s)}</TableCell>
-                      <TableCell>{r.rpe ?? "—"}</TableCell>
-                      <TableCell>{r.performance_score ? r.performance_score.toFixed(2) : "—"}</TableCell>
-                      <TableCell><span className="text-xs text-muted-foreground">{r.status}</span></TableCell>
-                    </TableRow>
-                  ))}
+                  {results.map((r) => {
+                    const badgeCls =
+                      r.status === "verified" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : r.status === "pending" ? "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
+                      : r.status === "incomplete" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                      : r.status === "disqualified" ? "bg-muted text-muted-foreground line-through"
+                      : "bg-muted text-muted-foreground";
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.display_name}</TableCell>
+                        <TableCell>
+                          {r.start_time
+                            ? new Date(r.start_time).toLocaleTimeString()
+                            : <Input type="datetime-local" className="h-7 text-xs w-44" onBlur={(e) => e.target.value && setResultTime(r.id, "start_time", new Date(e.target.value).toISOString())} />}
+                        </TableCell>
+                        <TableCell>
+                          {r.finish_time
+                            ? new Date(r.finish_time).toLocaleTimeString()
+                            : <Input type="datetime-local" className="h-7 text-xs w-44" onBlur={(e) => e.target.value && setResultTime(r.id, "finish_time", new Date(e.target.value).toISOString())} />}
+                        </TableCell>
+                        <TableCell>{fmtDur(r.duration_s)}</TableCell>
+                        <TableCell>{r.rpe ?? "—"}</TableCell>
+                        <TableCell>{r.performance_score ? r.performance_score.toFixed(2) : "—"}</TableCell>
+                        <TableCell><span className={`inline-block rounded px-2 py-0.5 text-xs ${badgeCls}`}>{r.status}</span></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end flex-wrap">
+                            {(r.status === "pending" || r.status === "incomplete") && (
+                              <>
+                                <Button size="sm" variant="default" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "verified")}>Approve</Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "disqualified")}>DQ</Button>
+                              </>
+                            )}
+                            {(r.status === "verified" || r.status === "disqualified") && (
+                              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "pending")}>Revert</Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
