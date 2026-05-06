@@ -1,212 +1,353 @@
-# QR-Based Timing & Adjusted Performance — Architecture & Implementation Plan
+# Route Calibration & Alpha Tuning — Architecture Plan
 
-## 1. Recommended Architecture
-
-Keep the existing app intact (`runs`, `events`, `event_participants`, `profiles`, `user_roles`) and add a **parallel "official timing" layer** alongside it. Manual run logging stays as-is for casual/random runs; QR timing produces *event results* in a new dedicated table. The two never overwrite each other.
-
-Modular boundaries:
-
-```text
-┌─ Casual logging (existing) ──────────┐    ┌─ Official QR timing (new) ─────────┐
-│  runs, AddRun.tsx, Dashboard stats   │    │  event_results, scan-token edge fn │
-└──────────────────────────────────────┘    │  scan pages, RPE form, results UI  │
-                                            └────────────────────────────────────┘
-                          ▲                                ▲
-                          └────── shared: events, profiles, user_roles ──────┘
-
-Future: Strava import → writes into event_results with source='strava' (no coupling to QR).
-```
-
-Key decisions:
-- Server-authoritative timing via an **edge function** (`scan-event`). The browser never writes timestamps; it just calls the function with the scanned token.
-- QR codes encode a URL like `/scan/<event_id>?t=<token>&p=start|finish` — the token is a 32-byte random secret stored on the event row.
-- RPE never touches `performance_score`. It lives on `event_results` for personal interpretation and future calibration.
-- Performance score is **computed in SQL** (generated column or trigger) so admins can't accidentally save inconsistent values.
-
-## 2. Implementation Phases
-
-**Phase 1 — Schema & QR foundations (MVP)**
-- Migration: extend `events`, add `event_results`, `alpha_settings`.
-- Edge function `scan-event` (start/finish, with token + state machine).
-- Admin UI: enable QR on event, generate/regenerate tokens, view & download QR codes (PNG via `qrcode` npm pkg).
-- Public route `/scan/:eventId` that calls the edge function and shows confirmation.
-
-**Phase 2 — Results & RPE**
-- After-finish RPE prompt (1–10 + notes).
-- Admin page to enter route params (distance, elevation gain/loss, alpha) and publish results.
-- Runner-facing results page (only when `results_published = true`).
-
-**Phase 3 — Personal progress & interpretation**
-- Compute interpretation labels client-side (or in a view) from latest vs. previous same-route result + RPE delta.
-- Per-user history view filtered by route.
-
-**Phase 4 — Admin corrections & status**
-- Manual time edits, status transitions (verified / corrected / incomplete / disqualified), admin notes.
-- `alpha_experiments` table + recompute-scores SQL function for calibration runs.
-
-**Phase 5 (later, optional)** — Strava import as a separate edge function writing rows with `source='strava'`. No changes to QR code paths.
-
-## 3. Database Design
-
-Improvements over your draft: split route metadata from event metadata is **not** worth it yet (1 route per event); keep alpha on event AND snapshot `alpha_used` on the result so re-publishing alpha doesn't silently rewrite history. Use seconds (integer) everywhere for durations to avoid float drift. Drop `alpha_settings` table — a single `app_config` row or a default constant is enough until experiments start.
-
-```text
-events  (extend existing)
-  + qr_enabled                boolean default false
-  + start_qr_token            text     -- 32-byte url-safe random
-  + finish_qr_token           text
-  + qr_window_start           timestamptz null  -- optional scan window
-  + qr_window_end             timestamptz null
-  + route_distance_m          integer  null
-  + route_elevation_gain_m    integer  null
-  + route_elevation_loss_m    integer  null
-  + alpha                     numeric  default 5
-  + results_published         boolean  default false
-
-event_results  (new)
-  id                 uuid pk
-  event_id           uuid not null  → events.id
-  user_id            uuid not null
-  source             text not null check (source in ('qr','manual','strava'))
-  start_time         timestamptz null
-  finish_time        timestamptz null
-  duration_s         integer      null   -- generated: extract(epoch from finish-start)
-  distance_m         integer      null   -- snapshot from event at publish time
-  elevation_gain_m   integer      null
-  elevation_loss_m   integer      null
-  alpha_used         numeric      null
-  performance_score  numeric      null   -- generated; null when inputs missing
-  rpe                smallint     null check (rpe between 1 and 10)
-  rpe_notes          text         null
-  session_load       numeric      null   -- generated: (duration_s/60)*rpe
-  progress_label     text         null   -- cached interpretation
-  status             text not null default 'pending'
-                       check (status in ('pending','verified','corrected','incomplete','disqualified'))
-  admin_note         text null
-  created_at, updated_at
-  unique (event_id, user_id)             -- one official result per runner per event
-
-alpha_experiments  (new, optional in Phase 4)
-  id, name, alpha_value, description, start_date, end_date, notes, created_at
-```
-
-**Why generated columns**: prevents drift between stored score and inputs. Implemented as a trigger if Postgres `GENERATED` can't reference NULL-tolerant math, otherwise as a `BEFORE INSERT/UPDATE` trigger that recomputes `duration_s`, `performance_score`, `session_load`.
-
-**Why keep `runs` separate**: casual runs (random Tuesday jog) don't belong in `event_results`. If admin wants to also count an event toward personal stats, an optional trigger can mirror a finished `event_result` into `runs` — but default off.
-
-## 4. QR Flow Design
-
-Each event with `qr_enabled = true` has 2 tokens:
-
-```text
-Start QR  →  https://app/scan/<event_id>?t=<start_token>&p=start
-Finish QR →  https://app/scan/<event_id>?t=<finish_token>&p=finish
-```
-
-State machine per (event, user):
-```text
-none ──scan start──▶ started ──scan finish──▶ finished
-              │                            │
-              └─scan finish first──▶ rejected (finish before start)
-              └─re-scan start──▶ ignored (already started, no overwrite)
-```
-
-Edge function `scan-event` does:
-1. Validate JWT → get `user_id` (if missing, frontend redirects to `/auth?next=/scan/...`).
-2. Load event by id, check `qr_enabled`, check token matches the right phase, check `now()` within `qr_window_*` if set.
-3. Auto-insert into `event_participants` if not joined.
-4. Upsert into `event_results`:
-   - `p=start`: insert row with `start_time = now()` if none; if row exists with start, ignore (idempotent); if row has finish but no start → mark `status='incomplete'`.
-   - `p=finish`: require existing start; set `finish_time = now()`. If `finish < start` → reject. If no start row → insert with `status='incomplete'`.
-5. Return `{ status, start_time, finish_time, duration_s }` so the page can show confirmation.
-
-Client `/scan/:eventId` page: minimal — spinner → outcome card → "Submit RPE" CTA when `finished`.
-
-## 5. User Flows
-
-**Runner — race day**
-1. Opens camera, scans Start QR → if logged out, redirected through `/auth?next=...` then back.
-2. Auto-joined to event. Sees "Started at 09:03:12. Have a great run!"
-3. Crosses finish, scans Finish QR → "Finished. 32:14 elapsed."
-4. Sees RPE prompt (1–10 + optional notes). Can skip.
-5. Results hidden until admin publishes; receives a toast/notification when published.
-
-**Runner — viewing**
-- Event page shows their own pending result with status; full leaderboard appears once `results_published`.
-- Personal progress section: latest vs previous result *on the same event/route*, with interpretation label.
-
-## 6. Admin Flows
-
-1. Create event → toggle "QR Timing". Tokens auto-generated; download/print Start + Finish QR PDFs.
-2. After event: enter route distance, elevation gain (loss optional), confirm alpha.
-3. Review results table:
-   - Edit any `start_time` / `finish_time` (status auto → `corrected`).
-   - Mark incomplete / disqualified.
-   - Add admin note.
-4. Click **Publish Results** → snapshots `distance_m`, `elevation_gain_m`, `alpha_used` into each row, recomputes scores, sets `results_published = true`.
-5. Re-publishing after edits is allowed and snapshots again.
-
-## 7. API / Backend Requirements
-
-Edge functions (Lovable Cloud):
-- `scan-event` (POST) — the core endpoint above.
-- `publish-event-results` (POST, admin only) — snapshots route params + alpha into all rows, recomputes scores, flips `results_published`.
-- `regenerate-qr-tokens` (POST, admin only) — replaces tokens (for leak recovery).
-
-All other reads/writes use the supabase-js client + RLS.
-
-## 8. Edge Cases & How They're Handled
-
-| Case | Handling |
-|---|---|
-| Finish before start | Edge fn rejects with 409; result row marked `incomplete` if user insists. |
-| Multiple start scans | Idempotent — first start wins, later scans return existing time. |
-| Multiple finish scans | First finish wins; later scans return existing finish. |
-| Forgotten finish | Row stays `started`; admin can manually enter finish or mark `incomplete`. |
-| Scan outside `qr_window_*` | Edge fn returns 403; admin can still manual-enter. |
-| Leaked token | Admin runs `regenerate-qr-tokens`; old QR stops working immediately. |
-| Admin changes alpha after publish | Recompute happens only on next "Publish"; row's `alpha_used` remains until then (auditable). |
-| Route data missing at publish | Publish blocked with clear error. |
-| User not logged in | Scan page bounces through `/auth?next=` and resumes. |
-| User not joined | Auto-joined on start scan. |
-| RPE skipped | `rpe` stays null; interpretation simply omits effort comparison. |
-| Duplicate scans / network retry | Edge fn is idempotent on (event, user, phase). |
-| Network drop mid-scan | Frontend retries the same call; idempotent → safe. |
-
-## 9. Security Considerations
-
-- **Server-side timestamps only** — the edge function writes `now()`; client values are never trusted.
-- **Tokens**: 32 bytes from `crypto.getRandomValues`, base64url-encoded. Stored on `events` row; never exposed except to admins (RLS column-level via a separate admin-only view, or just gate via existing `has_role(auth.uid(),'admin')`).
-- **RLS on `event_results`**:
-  - SELECT own row: `auth.uid() = user_id`.
-  - SELECT all rows when `results_published = true` (join via security-definer function reading `events.results_published`).
-  - SELECT all: admins.
-  - INSERT/UPDATE: **forbidden from client**; only the edge function (service role) writes. Add a policy `WITH CHECK (false)` for non-admins to make this explicit. Admin manual edits go through admin-only UPDATE policy gated by `has_role(...,'admin')`.
-  - UPDATE rpe by owner: narrow policy allowing only `rpe`, `rpe_notes` columns (enforced via a `BEFORE UPDATE` trigger that rejects changes to other fields when not admin).
-- **Events**: token columns must not be readable by non-admins — wrap public event reads in a view that omits `*_qr_token`, or use column privileges.
-- **HIBP password check**: enable in auth settings (independent improvement).
-
-## 10. Future Scalability
-
-- `alpha_experiments` + a `recompute_scores(experiment_id)` SQL function lets the club A/B different alphas without touching production data — write computed scores to a separate `event_result_score_runs` table when the time comes.
-- `source` column on `event_results` is the seam for Strava (Phase 5) and future GPS watch imports — no schema change needed.
-- A single `event_results` view per (user, route) is enough for personal trend charts; can later be a materialized view if event count grows.
-- Interpretation logic stays in TS today; can move to a SQL function later if surfaced in admin analytics.
-
-## 11. MVP Simplifications
-
-For the very first ship, drop:
-- `qr_window_start/end` (skip time-window enforcement; admin can disable QR after the event).
-- `alpha_experiments` table (hardcode default alpha = 5, editable per event).
-- Status values beyond `pending` / `verified` / `incomplete` (add `corrected`/`disqualified` in Phase 4).
-- `progress_label` cached column (compute in the client from the last 2 same-event results).
-- Strava anything.
-
-That gets you: QR timing → results table → publish → personal "you vs last time" with RPE notes. ~2 migrations, 1 edge function, 3 new pages (admin QR panel, scan page, results page), 1 small RPE dialog.
+Goal: turn `alpha` from an event-level number into a **route-level, admin-tunable, history-preserving** coefficient, with a recommendation engine that suggests changes from real data but never auto-applies them.
 
 ---
 
-**Open questions before building** (would be good to confirm during implementation kickoff, not now):
-1. Should an "official" finished `event_result` also create a row in `runs` so it counts toward weekly km stats? (Recommend: yes, via trigger, with a flag to suppress.)
-2. Are events always single-route, or could one event have multiple route options (e.g. 5k & 10k)? Plan above assumes single-route per event.
-3. Do you want public results (anyone with the link) or always require login? Plan above keeps login-required.
+## 1. Recommended Architecture
+
+Three loosely-coupled layers so calibration can evolve without touching timing or the UI:
+
+```text
+┌─ Timing (existing, unchanged) ──────┐
+│ scan-event → event_results row      │
+└────────────┬────────────────────────┘
+             │ writes alpha_used, formula_version, route_id
+             ▼
+┌─ Scoring Engine (new, pure) ────────┐
+│ score(D, T, E, alpha, version)      │
+│ versioned, deterministic, testable  │
+└────────────┬────────────────────────┘
+             │ historical results stay valid
+             ▼
+┌─ Calibration Engine (new, offline) ─┐
+│ analyze_route(route_id) → suggestion│
+│ runs on-demand or cron, writes to   │
+│ alpha_experiments + routes.suggested│
+└────────────┬────────────────────────┘
+             ▼
+┌─ Admin Calibration Dashboard ───────┐
+│ review / accept / reject / override │
+└─────────────────────────────────────┘
+```
+
+Key principles:
+- **Routes become first-class.** `events` reference a route; `alpha` lives on the route, not the event.
+- **Reproducibility:** every result snapshots `alpha_used` + `scoring_formula_version`. Recomputing old scores is opt-in.
+- **Recommendations are inert.** They live in `alpha_experiments` until an admin approves them; approval writes a new row to `route_alpha_history` and updates `routes.current_alpha`.
+- **Pure scoring functions** in TS (client/edge) and SQL (trigger), kept in lockstep by version number. Both sides have unit tests for each version.
+
+---
+
+## 2. Database Design
+
+### 2.1 New: `routes`
+```text
+routes
+  id, name, description
+  distance_m, elevation_gain_m, elevation_loss_m
+  surface_type            enum('road','trail','mixed','track','gravel')
+  technicality_rating     smallint 1–5    -- admin's subjective input
+  terrain_notes           text
+  gpx_file_url            text            -- moved from events
+  current_alpha           numeric not null default 5
+  suggested_alpha         numeric null
+  alpha_status            enum('default','testing','calibrated','needs_review')
+  calibration_confidence  numeric null    -- 0–1
+  calibration_sample_size integer default 0
+  alpha_last_updated_at   timestamptz null
+  alpha_notes             text
+  created_by, created_at, updated_at
+```
+
+### 2.2 New: `route_alpha_history` (audit log)
+```text
+route_alpha_history
+  id, route_id
+  previous_alpha, new_alpha
+  source                  enum('manual','experiment','reset')
+  experiment_id           uuid null → alpha_experiments
+  changed_by, reason, created_at
+```
+Append-only. Powers the "recent alpha changes" timeline and lets admins revert.
+
+### 2.3 New: `alpha_experiments`
+```text
+alpha_experiments
+  id, route_id
+  previous_alpha, proposed_alpha
+  reason                  text         -- human-readable summary from engine
+  confidence_score        numeric 0–1
+  sample_size             integer
+  metrics                 jsonb        -- raw stats: residuals, n_repeat_runners, RPE bands…
+  status                  enum('proposed','testing','approved','rejected','archived')
+  created_by              uuid null    -- null = system-generated
+  created_at, approved_at, rejected_at
+  reviewer_id, notes
+```
+
+### 2.4 Extend: `events`
+- Add `route_id uuid` (nullable during migration; required afterwards).
+- **Remove** route-ish columns from events over time (`route_distance_m`, `route_elevation_gain_m`, `route_elevation_loss_m`, `gpx_file_url`, `alpha`). Migration-friendly path: keep them as fallback, populate `route_id` for existing events by either creating one route per existing event or matching by GPX hash.
+
+### 2.5 Extend: `event_results`
+Add:
+- `route_id uuid` — denormalized snapshot at publish time (so a later event→route reassignment doesn't break history).
+- `scoring_formula_version smallint not null default 1`
+- Keep existing `alpha_used`, `distance_m`, `elevation_gain_m`, `elevation_loss_m`, `performance_score`, `rpe`, `session_load`.
+
+### 2.6 New: `scoring_formula_versions` (small reference table)
+```text
+id (smallint pk), name, description, created_at, deprecated_at
+```
+Lets the UI label "Score (v2)" and lets admins see which formula produced which row.
+
+---
+
+## 3. Calibration Strategy
+
+The core question: **does route X consistently produce different adjusted scores than route Y for the same runner at the same effort?**
+
+### 3.1 RPE bands
+- easy: 1–3
+- moderate: 4–6
+- hard: 7–8
+- maximal: 9–10
+
+Only compare runs **within the same band** — RPE is the cheapest proxy for effort.
+
+### 3.2 Per-runner residual method (recommended MVP approach)
+
+For each runner with results on ≥2 routes:
+1. Compute their mean adjusted score per (route, RPE-band).
+2. Compute their **personal baseline** = mean of their per-route means across all routes (or median, more robust).
+3. Per-route residual = `(route_mean - personal_baseline) / personal_baseline`.
+4. Route-level signal = median of residuals across all qualifying runners (median, not mean — outlier-resistant).
+
+Interpretation:
+- Negative median residual → runners score lower here than their baseline → route is harder than alpha reflects → **suggest higher alpha**.
+- Positive → route easier than alpha reflects → **suggest lower alpha**.
+
+### 3.3 Suggested alpha update rule
+Solve algebraically: how much extra alpha would close the residual gap?
+
+```text
+target_score = baseline
+current_score = (D/T) * (1 + alpha * grade)        where grade = E_gain / D
+proposed_alpha solves: current_score * (1 + a'*grade) / (1 + alpha*grade) = baseline
+```
+
+In practice use a damped step (don't jump fully):
+```text
+proposed_alpha = current_alpha + 0.5 * (algebraic_alpha - current_alpha)
+clamp to [0, 20]
+```
+
+### 3.4 Minimums (block suggestions until met)
+- ≥ 20 finished results on the route
+- ≥ 5 runners with results on ≥ 2 different routes ("repeat runners")
+- ≥ 10 results that include RPE
+- Time span ≥ 3 events (avoid single-event noise)
+
+Below thresholds: route stays `default`, dashboard shows "insufficient data — N/Y".
+
+### 3.5 Confidence score (0–1)
+Weighted average of:
+- sample-size factor: `min(1, n_results / 50)`
+- repeat-runner factor: `min(1, n_repeat_runners / 15)`
+- RPE coverage: `fraction of results with RPE`
+- residual stability: `1 - normalized_IQR_of_residuals`
+
+Show confidence in the dashboard; don't gate on it (admin decides).
+
+---
+
+## 4. Alpha Recommendation Logic
+
+Pseudo-code for `recommend_alpha(route_id)`:
+
+```text
+results = event_results WHERE route_id = X AND status='verified' AND rpe IS NOT NULL
+if !meets_minimums(results): return null
+
+per_runner = group(results) by user_id where user has ≥2 routes
+for each runner:
+  for each band in [easy,moderate,hard,maximal]:
+    runner_route_mean[band] = mean(scores in band on this route)
+    runner_baseline[band]   = median(per-route means in band across all their routes)
+    residuals[band].push((runner_route_mean - baseline) / baseline)
+
+route_residual = weighted_median(residuals across bands, weight by n)
+proposed = solve_alpha(current_alpha, route_residual, mean_grade)
+proposed = current + 0.5 * (proposed - current)
+proposed = clamp(proposed, 0, 20)
+
+confidence = compute_confidence(...)
+return { proposed_alpha, confidence, sample_size, metrics }
+```
+
+Trigger:
+- Manual: admin clicks "Re-analyze" on the route page → sync edge function call.
+- Scheduled: weekly cron (Supabase scheduled edge function) loops over routes with new data since `alpha_last_updated_at`.
+
+---
+
+## 5. Anti-Outlier Strategy
+
+- **Medians over means** at every aggregation step.
+- **Winsorize** raw scores per route to [p5, p95] before stats.
+- **Drop incomplete results** (status `incomplete`/`disqualified`).
+- **Drop solo runners** (1 route only — no baseline possible).
+- **RPE sanity check**: drop results where score percentile and RPE percentile disagree by >2 bands (e.g., fastest run logged as RPE 1).
+- **Cooling-off**: if a route's alpha was changed in last 30 days, lower the recommendation weight or skip.
+- **Damping factor 0.5** so suggestions converge, not oscillate.
+
+---
+
+## 6. Admin Calibration Dashboard
+
+Route: `/admin/calibration` (admin-gated like `/admin`).
+
+**List view** (table): route name • surface • current α • suggested α • Δ • confidence • sample size • repeat runners • last updated • status badge.
+
+**Row actions**: Accept (writes history + updates `current_alpha`), Reject (archives experiment), Override (manual α input), Reset to default (5), Mark calibrated.
+
+**Route detail view**: 
+- Header: name, current α, status, last change.
+- Stats: result count, finishers, avg RPE, score distribution sparkline, residual chart per RPE band.
+- Pending experiment card: proposed α, reason, confidence, "Accept / Reject / Edit & Accept".
+- History timeline: every α change with who/when/why.
+- Experiment list with statuses.
+- "Re-analyze now" button.
+
+Normal users see none of this. Their event page shows just published results + their personal "vs last time" — no aggregates, no RPE distributions, no α metadata beyond a small "α 5.0" label if you want.
+
+---
+
+## 7. Scoring Engine Architecture
+
+```text
+src/lib/scoring/
+  index.ts          // dispatch by version
+  v1.ts             // (D/T) * (1 + alpha * E/D)
+  v2.ts             // future: terrain multiplier, nonlinear E
+  types.ts          // ScoreInput, ScoreOutput
+  __tests__/        // golden-value tests per version
+```
+
+```ts
+type ScoreInput = {
+  distance_m: number;
+  duration_s: number;
+  elevation_gain_m: number;
+  alpha: number;
+  // forward-compatible:
+  terrain?: TerrainModifiers;
+  weather?: WeatherModifiers;
+};
+
+export function score(input: ScoreInput, version = CURRENT_VERSION): number;
+```
+
+SQL side: keep `recompute_event_result()` but switch on `NEW.scoring_formula_version`. Each version is a SQL `CASE` branch or a `score_v1()/score_v2()` function. Add a CI test that asserts SQL and TS produce identical values on a fixture set.
+
+Future hooks (NOT implemented now):
+- `route_terrain_modifier numeric` on routes.
+- `weather_snapshot jsonb` on event_results.
+- v2 formula could be `(D/T) * (1 + α·E/D)^β · terrain · weather` — version bump + new column, no migration of v1 rows.
+
+---
+
+## 8. Versioning Approach
+
+- `scoring_formula_versions` table is the source of truth.
+- Each `event_results` row pins its version. Old rows are **never silently recomputed**.
+- "Recompute with v2" is an explicit admin action, writes to a sibling table `event_result_score_runs(result_id, version, score, computed_at)` — preserves the original.
+- Dashboards show scores in their original version by default with a "Compare under v2" toggle once v2 ships.
+
+---
+
+## 9. Security / RLS Plan
+
+New tables:
+
+`routes`
+- SELECT (authenticated): `true` for non-sensitive cols only — expose via a view `routes_public` that omits `suggested_alpha`, `calibration_confidence`, `calibration_sample_size`, `alpha_notes`.
+- SELECT full row: `has_role(auth.uid(),'admin')`.
+- INSERT/UPDATE/DELETE: admin only.
+
+`route_alpha_history`
+- SELECT: admin only.
+- INSERT: admin only (or service role from edge function).
+- UPDATE/DELETE: forbidden (append-only; enforce with trigger that raises on UPDATE/DELETE for non-superuser).
+
+`alpha_experiments`
+- SELECT/INSERT/UPDATE/DELETE: admin only.
+- System-generated rows inserted by edge function with service role.
+
+`event_results` (already correct) — no change beyond adding the new columns; existing policies cover it. The new `route_id` column is fine to expose.
+
+`scoring_formula_versions` — public SELECT, admin-only writes.
+
+Edge functions:
+- `recommend-alpha` (admin-only via JWT + has_role check) — reads results, writes one `alpha_experiments` row + updates `routes.suggested_alpha`.
+- `apply-alpha-decision` (admin-only) — accept/reject; on accept writes `route_alpha_history` and updates `routes.current_alpha`.
+- `recompute-route-stats` (admin or cron) — refreshes confidence/sample_size on routes.
+
+---
+
+## 10. MVP vs Future Phases
+
+**Phase A — Routes as first-class (foundation, no calibration yet)**
+- `routes` table, migrate existing events to reference routes.
+- Move `alpha`, distance, elevation, GPX from events → routes.
+- `event_results` gets `route_id` + `scoring_formula_version=1`.
+- Admin route CRUD page.
+- Confirms reproducibility before any tuning logic ships.
+
+**Phase B — Calibration MVP**
+- `alpha_experiments` + `route_alpha_history`.
+- `recommend-alpha` edge function with the per-runner residual method.
+- Admin Calibration dashboard list + accept/reject.
+- Manual "Re-analyze" only (no cron).
+
+**Phase C — Polish**
+- Scheduled weekly recompute.
+- Route detail view with residual charts.
+- Confidence visualization, history timeline.
+- "Insufficient data" UX.
+
+**Phase D — Scoring v2 hooks**
+- `scoring_formula_versions` table.
+- Versioned scoring engine (TS + SQL parity tests).
+- Terrain/weather columns reserved but unused.
+
+**Phase E — Advanced (only when data justifies)**
+- Mixed-effects regression instead of residual medians.
+- Per-surface baseline α priors.
+- Optional ML model behind same `recommend-alpha` interface.
+
+---
+
+## 11. Simplifications & Risks
+
+Simplifications taken:
+- RPE bands instead of continuous regression — cheap, interpretable, good enough at small N.
+- Median/winsorize instead of robust statistical models — no scipy needed.
+- One route per event (not multi-distance events) — covered by current product.
+- α only; no separate elevation-gain or pace coefficients yet.
+- Residual method assumes runners' fitness is roughly stable across recent events; OK for a club, breaks if someone drastically improves mid-season — partly mitigated by cooling-off and band stratification.
+
+Risks:
+- **Cold start**: until ~20+ results per route exist, recommendations are silent. Communicate this clearly in the dashboard.
+- **RPE honesty**: garbage in, garbage out. Add the RPE-vs-score sanity drop, and consider showing each runner their RPE distribution to encourage consistency.
+- **Self-selection**: faster runners may avoid hard routes, biasing residuals. Repeat-runner requirement helps; surface_type-grouped baselines (Phase E) helps more.
+- **Route changes**: if a real-world route changes (new detour), historical results become misleading. Mitigation: route versioning (`routes.parent_route_id`, "fork route" admin action) — Phase C+.
+- **Score comparability across formula versions**: solved by pinning version per result and never silently recomputing.
+
+---
+
+**Open questions to confirm before Phase A:**
+1. For existing events, do we auto-create a route per event, or have admins manually consolidate similar events into shared routes? (Recommend: auto-create, then admin merges.)
+2. Should `runs` (casual logging) ever reference routes? (Recommend: no for MVP — routes are an event/calibration concept.)
+3. Is α capped (e.g., 0–20) acceptable, or do you want unbounded? Cap is recommended to keep scores interpretable.
