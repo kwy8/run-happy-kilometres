@@ -277,16 +277,10 @@ export default function Dashboard() {
         )}
 
 
-        {/* Leaderboard toggle */}
-        <Card>
-          <CardContent className="pt-4 flex items-center justify-between">
-            <div>
-              <Label className="font-medium">Show on Leaderboard</Label>
-              <p className="text-xs text-muted-foreground">Share your stats publicly</p>
-            </div>
-            <Switch checked={profile?.show_on_leaderboard ?? false} onCheckedChange={toggleLeaderboard} />
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <Link to="/profile" className="text-sm text-primary hover:underline">View full run history →</Link>
+        </div>
+
       </div>
     </AppLayout>
   );
