@@ -129,11 +129,8 @@ export default function Dashboard() {
     toast.success("You're in! See you there 🌅");
   };
 
-  const toggleLeaderboard = async (checked: boolean) => {
-    await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);
-    setProfile((p) => p ? { ...p, show_on_leaderboard: checked } : p);
-    toast.success(checked ? "You're now on the leaderboard!" : "Removed from leaderboard");
-  };
+
+
 
   if (loading || loadingData) {
     return (
