@@ -249,7 +249,7 @@ export default function AdminCalibration() {
                               onClick={() => decide("reject", r.id, { experiment_id: pending.id })}>Reject</Button>
                           </>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingRoute(r); setManualAlpha(String(r.current_alpha)); setEditReason(""); }}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>Edit</Button>
                       </TableCell>
                     </TableRow>
                   );
