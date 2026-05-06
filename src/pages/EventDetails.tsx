@@ -237,7 +237,7 @@ export default function EventDetails() {
                           : "—"}
                       </TableCell>
                       <TableCell>
-                        {p.performance_score != null ? p.performance_score.toFixed(2) : "—"}
+                        {formatRR(p.performance_score)}
                       </TableCell>
                       <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
                         {p.rpe_notes || "—"}
