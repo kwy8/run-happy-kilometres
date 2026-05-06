@@ -7,11 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus, Flag } from "lucide-react";
+import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
-import { Badge } from "@/components/ui/badge";
 
 interface Run {
   id: string;
@@ -19,6 +18,8 @@ interface Run {
   run_date: string;
   time_taken_minutes: number | null;
   notes: string | null;
+  performance_score?: number | null;
+  source?: "casual" | "official";
 }
 
 interface UpcomingEvent {
@@ -27,16 +28,6 @@ interface UpcomingEvent {
   event_date: string;
   meetup_time: string | null;
   location: string | null;
-}
-
-interface OfficialResult {
-  id: string;
-  event_id: string;
-  event_title: string;
-  event_date: string;
-  duration_s: number | null;
-  distance_m: number | null;
-  performance_score: number | null;
 }
 
 export default function Dashboard() {
@@ -48,8 +39,6 @@ export default function Dashboard() {
   const [hasJoined, setHasJoined] = useState(false);
   const [joining, setJoining] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-
-  const [officialResults, setOfficialResults] = useState<OfficialResult[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -66,7 +55,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoadingData(true);
     const today = new Date().toLocaleDateString("en-CA");
-    const [runsRes, profileRes, eventRes] = await Promise.all([
+    const [runsRes, profileRes, eventRes, orRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
       supabase
@@ -76,31 +65,38 @@ export default function Dashboard() {
         .order("event_date", { ascending: true })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("event_results")
+        .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date, route_distance_m)")
+        .eq("user_id", user!.id)
+        .eq("status", "verified"),
     ]);
-    if (runsRes.data) setRuns(runsRes.data);
-    if (profileRes.data) setProfile(profileRes.data);
 
-    // Verified official event results for this user
-    const { data: orData } = await supabase
-      .from("event_results")
-      .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date)")
-      .eq("user_id", user!.id)
-      .eq("status", "verified")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    if (orData) {
-      setOfficialResults(
-        orData.map((r: any) => ({
-          id: r.id,
-          event_id: r.event_id,
-          event_title: r.events?.title || "Event",
-          event_date: r.events?.event_date || "",
-          duration_s: r.duration_s,
-          distance_m: r.distance_m,
-          performance_score: r.performance_score,
-        }))
-      );
-    }
+    const casual: Run[] = (runsRes.data || []).map((r) => ({
+      id: r.id,
+      distance_km: r.distance_km,
+      run_date: r.run_date,
+      time_taken_minutes: r.time_taken_minutes,
+      notes: r.notes,
+      source: "casual",
+    }));
+    const official: Run[] = (orRes.data || []).map((r: any) => {
+      const distM = r.distance_m ?? r.events?.route_distance_m ?? null;
+      return {
+        id: r.id,
+        distance_km: distM ? distM / 1000 : 0,
+        run_date: r.events?.event_date || new Date().toISOString().slice(0, 10),
+        time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : null,
+        notes: r.events?.title ? `Event: ${r.events.title}` : null,
+        performance_score: r.performance_score,
+        source: "official",
+      };
+    });
+    const merged = [...casual, ...official].sort((a, b) =>
+      a.run_date < b.run_date ? 1 : a.run_date > b.run_date ? -1 : 0
+    );
+    setRuns(merged);
+    if (profileRes.data) setProfile(profileRes.data);
     if (eventRes.data) {
       setUpcomingEvent(eventRes.data);
       const { data: joinData } = await supabase
