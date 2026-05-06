@@ -280,6 +280,40 @@ export default function Dashboard() {
           </Card>
         )}
 
+        {/* Official event results */}
+        {officialResults.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Flag className="w-4 h-4 text-primary" /> Official Event Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-border">
+                {officialResults.map((r) => (
+                  <li key={r.id} className="py-2 flex items-center justify-between text-sm">
+                    <div className="min-w-0">
+                      <Link to={`/events/${r.event_id}`} className="font-medium text-foreground hover:underline truncate">
+                        {r.event_title}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">
+                        {r.event_date && new Date(r.event_date).toLocaleDateString()}
+                        {r.distance_m ? ` · ${(r.distance_m / 1000).toFixed(1)} km` : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">Verified</Badge>
+                      <span className="font-bold tabular-nums text-foreground">
+                        {r.duration_s != null ? formatMinSec(r.duration_s / 60) : "—"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Leaderboard toggle */}
         <Card>
           <CardContent className="pt-4 flex items-center justify-between">
