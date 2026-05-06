@@ -135,6 +135,23 @@ export default function EventTiming() {
     }
   };
 
+  const setResultStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from("event_results").update({ status }).eq("id", id);
+    if (error) toast.error(error.message); else { toast.success(`Marked ${status}`); fetchData(); }
+  };
+
+  const setResultTime = async (id: string, field: "start_time" | "finish_time", iso: string | null) => {
+    const { error } = await supabase.from("event_results").update({ [field]: iso }).eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Time updated"); fetchData(); }
+  };
+
+  const approveAllPending = async () => {
+    const ids = results.filter(r => r.status === "pending").map(r => r.id);
+    if (ids.length === 0) { toast.info("No pending results"); return; }
+    const { error } = await supabase.from("event_results").update({ status: "verified" }).in("id", ids);
+    if (error) toast.error(error.message); else { toast.success(`Approved ${ids.length}`); fetchData(); }
+  };
+
   const downloadQr = (kind: "start" | "finish") => {
     const svg = document.getElementById(`qr-${kind}`);
     if (!svg) return;
