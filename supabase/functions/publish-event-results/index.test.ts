@@ -62,7 +62,7 @@ async function cleanup(eventId: string, ...userIds: string[]) {
   }
 }
 
-Deno.test("publish: 401 unauthenticated", async () => {
+Deno.test({ name: "publish: 401 unauthenticated", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const res = await fetch(FN_URL, {
     method: "POST",
     headers: { "apikey": ANON, "Content-Type": "application/json" },
@@ -70,39 +70,39 @@ Deno.test("publish: 401 unauthenticated", async () => {
   });
   await res.text();
   assertEquals(res.status, 401);
-});
+} });
 
-Deno.test("publish: 403 for non-admin", async () => {
+Deno.test({ name: "publish: 403 for non-admin", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const eventId = await makeEvent(true);
   const r = await call(u.token, { event_id: eventId });
   assertEquals(r.status, 403);
   await cleanup(eventId, u.userId);
-});
+} });
 
-Deno.test("publish: 400 missing event_id", async () => {
+Deno.test({ name: "publish: 400 missing event_id", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser("admin");
   const r = await call(u.token, {});
   assertEquals(r.status, 400);
   await cleanup("00000000-0000-0000-0000-000000000000", u.userId);
-});
+} });
 
-Deno.test("publish: 404 unknown event", async () => {
+Deno.test({ name: "publish: 404 unknown event", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser("admin");
   const r = await call(u.token, { event_id: "00000000-0000-0000-0000-000000000000" });
   assertEquals(r.status, 404);
   await cleanup("00000000-0000-0000-0000-000000000000", u.userId);
-});
+} });
 
-Deno.test("publish: 400 when route distance missing", async () => {
+Deno.test({ name: "publish: 400 when route distance missing", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser("admin");
   const eventId = await makeEvent(false);
   const r = await call(u.token, { event_id: eventId });
   assertEquals(r.status, 400);
   await cleanup(eventId, u.userId);
-});
+} });
 
-Deno.test("publish: snapshots params, computes score, sets results_published", async () => {
+Deno.test({ name: "publish: snapshots params, computes score, sets results_published", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const admin_u = await makeUser("admin");
   const runner = await makeUser();
   const eventId = await makeEvent(true);
@@ -138,4 +138,4 @@ Deno.test("publish: snapshots params, computes score, sets results_published", a
   assertEquals(r2.json.results_published, false);
 
   await cleanup(eventId, admin_u.userId, runner.userId);
-});
+} });

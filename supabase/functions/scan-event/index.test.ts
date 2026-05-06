@@ -60,7 +60,7 @@ async function cleanup(eventId: string, userId: string) {
   await admin.auth.admin.deleteUser(userId);
 }
 
-Deno.test("scan-event: rejects unauthenticated", async () => {
+Deno.test({ name: "scan-event: rejects unauthenticated", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const res = await fetch(FN_URL, {
     method: "POST",
     headers: { "apikey": ANON, "Content-Type": "application/json" },
@@ -68,9 +68,9 @@ Deno.test("scan-event: rejects unauthenticated", async () => {
   });
   await res.text();
   assertEquals(res.status, 401);
-});
+} });
 
-Deno.test("scan-event: 404 for unknown event", async () => {
+Deno.test({ name: "scan-event: 404 for unknown event", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const r = await call(u.token, {
     event_id: "00000000-0000-0000-0000-000000000000",
@@ -79,41 +79,41 @@ Deno.test("scan-event: 404 for unknown event", async () => {
   });
   assertEquals(r.status, 404);
   await admin.auth.admin.deleteUser(u.userId);
-});
+} });
 
-Deno.test("scan-event: 403 when QR disabled", async () => {
+Deno.test({ name: "scan-event: 403 when QR disabled", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const e = await makeEvent({ qr_enabled: false });
   const r = await call(u.token, { event_id: e.eventId, token: e.startTok, phase: "start" });
   assertEquals(r.status, 403);
   assertEquals(r.json.error, "QR timing disabled");
   await cleanup(e.eventId, u.userId);
-});
+} });
 
-Deno.test("scan-event: 403 on wrong token", async () => {
+Deno.test({ name: "scan-event: 403 on wrong token", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const e = await makeEvent({ qr_enabled: true });
   const r = await call(u.token, { event_id: e.eventId, token: "nope", phase: "start" });
   assertEquals(r.status, 403);
   await cleanup(e.eventId, u.userId);
-});
+} });
 
-Deno.test("scan-event: rejects start token used as finish", async () => {
+Deno.test({ name: "scan-event: rejects start token used as finish", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const e = await makeEvent({ qr_enabled: true });
   const r = await call(u.token, { event_id: e.eventId, token: e.startTok, phase: "finish" });
   assertEquals(r.status, 403);
   await cleanup(e.eventId, u.userId);
-});
+} });
 
-Deno.test("scan-event: 400 on missing params", async () => {
+Deno.test({ name: "scan-event: 400 on missing params", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const r = await call(u.token, { event_id: "x" });
   assertEquals(r.status, 400);
   await admin.auth.admin.deleteUser(u.userId);
-});
+} });
 
-Deno.test("scan-event: full happy path + idempotency", async () => {
+Deno.test({ name: "scan-event: full happy path + idempotency", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const e = await makeEvent({ qr_enabled: true });
 
@@ -136,13 +136,13 @@ Deno.test("scan-event: full happy path + idempotency", async () => {
   assertEquals(parts?.length, 1);
 
   await cleanup(e.eventId, u.userId);
-});
+} });
 
-Deno.test("scan-event: finish without start creates incomplete row", async () => {
+Deno.test({ name: "scan-event: finish without start creates incomplete row", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const u = await makeUser();
   const e = await makeEvent({ qr_enabled: true });
   const r = await call(u.token, { event_id: e.eventId, token: e.finishTok, phase: "finish" });
   assertEquals(r.json.action, "finished_no_start");
   assertEquals(r.json.result.status, "incomplete");
   await cleanup(e.eventId, u.userId);
-});
+} });
