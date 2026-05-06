@@ -11,6 +11,7 @@ import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import AddRun from "./pages/AddRun";
 import Leaderboard from "./pages/Leaderboard";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCalibration from "./pages/AdminCalibration";
 import CreateEvent from "./pages/CreateEvent";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/add-run" element={<AddRun />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/calibration" element={<AdminCalibration />} />
             <Route path="/admin/create-event" element={<CreateEvent />} />

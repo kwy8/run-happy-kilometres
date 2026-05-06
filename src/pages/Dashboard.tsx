@@ -5,10 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
+import { formatRR } from "@/lib/score";
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
@@ -130,11 +129,8 @@ export default function Dashboard() {
     toast.success("You're in! See you there 🌅");
   };
 
-  const toggleLeaderboard = async (checked: boolean) => {
-    await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);
-    setProfile((p) => p ? { ...p, show_on_leaderboard: checked } : p);
-    toast.success(checked ? "You're now on the leaderboard!" : "Removed from leaderboard");
-  };
+
+
 
   if (loading || loadingData) {
     return (
@@ -277,16 +273,10 @@ export default function Dashboard() {
         )}
 
 
-        {/* Leaderboard toggle */}
-        <Card>
-          <CardContent className="pt-4 flex items-center justify-between">
-            <div>
-              <Label className="font-medium">Show on Leaderboard</Label>
-              <p className="text-xs text-muted-foreground">Share your stats publicly</p>
-            </div>
-            <Switch checked={profile?.show_on_leaderboard ?? false} onCheckedChange={toggleLeaderboard} />
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <Link to="/profile" className="text-sm text-primary hover:underline">View full run history →</Link>
+        </div>
+
       </div>
     </AppLayout>
   );
@@ -344,12 +334,12 @@ function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
         : { direction: "na" as const, tone: "neutral" as Tone }),
     },
     {
-      label: "Score",
-      latest: latest.performance_score != null ? latest.performance_score.toFixed(2) : "—",
-      previous: previous.performance_score != null ? previous.performance_score.toFixed(2) : "—",
+      label: "RR",
+      latest: latest.performance_score != null ? formatRR(latest.performance_score) : "—",
+      previous: previous.performance_score != null ? formatRR(previous.performance_score) : "—",
       delta:
         latest.performance_score != null && previous.performance_score != null
-          ? formatDelta(latest.performance_score - previous.performance_score, (n) => n.toFixed(2))
+          ? formatDelta(latest.performance_score - previous.performance_score, (n) => formatRR(n))
           : null,
       ...(latest.performance_score != null && previous.performance_score != null
         ? evalDirection(latest.performance_score, previous.performance_score, { lowerIsBetter: false })

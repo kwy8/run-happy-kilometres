@@ -11,6 +11,7 @@ import { Sun, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
+import { formatRR, RR_ABBR } from "@/lib/score";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
 
@@ -220,7 +221,7 @@ export default function EventDetails() {
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -236,7 +237,7 @@ export default function EventDetails() {
                           : "—"}
                       </TableCell>
                       <TableCell>
-                        {p.performance_score != null ? p.performance_score.toFixed(2) : "—"}
+                        {formatRR(p.performance_score)}
                       </TableCell>
                       <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
                         {p.rpe_notes || "—"}
