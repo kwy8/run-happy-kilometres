@@ -79,6 +79,28 @@ export default function Dashboard() {
     ]);
     if (runsRes.data) setRuns(runsRes.data);
     if (profileRes.data) setProfile(profileRes.data);
+
+    // Verified official event results for this user
+    const { data: orData } = await supabase
+      .from("event_results")
+      .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date)")
+      .eq("user_id", user!.id)
+      .eq("status", "verified")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (orData) {
+      setOfficialResults(
+        orData.map((r: any) => ({
+          id: r.id,
+          event_id: r.event_id,
+          event_title: r.events?.title || "Event",
+          event_date: r.events?.event_date || "",
+          duration_s: r.duration_s,
+          distance_m: r.distance_m,
+          performance_score: r.performance_score,
+        }))
+      );
+    }
     if (eventRes.data) {
       setUpcomingEvent(eventRes.data);
       const { data: joinData } = await supabase
