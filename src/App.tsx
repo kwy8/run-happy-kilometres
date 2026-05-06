@@ -36,6 +36,7 @@ const App = () => (
             <Route path="/events/:id" element={<EventDetails />} />
             <Route path="/add-run" element={<AddRun />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/calibration" element={<AdminCalibration />} />
             <Route path="/admin/create-event" element={<CreateEvent />} />
