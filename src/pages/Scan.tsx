@@ -25,7 +25,8 @@ export default function Scan() {
   const [params] = useSearchParams();
   const token = params.get("t") || "";
   const phase = (params.get("p") as "start" | "finish") || "start";
-  const { user, loading } = useAuth();
+  const isPreview = params.get("preview") === "1";
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "scanning" | "ok" | "err">("idle");
   const [message, setMessage] = useState("");
