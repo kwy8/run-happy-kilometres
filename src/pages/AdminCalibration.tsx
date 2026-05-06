@@ -310,9 +310,39 @@ export default function AdminCalibration() {
 
       {/* Edit dialog */}
       <Dialog open={!!editingRoute} onOpenChange={(o) => !o && setEditingRoute(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingRoute?.name}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Route details</h3>
+            <div><Label>Name</Label><Input value={details.name} onChange={(e) => setDetails({ ...details, name: e.target.value })} /></div>
+            <div><Label>Description</Label><Textarea value={details.description} onChange={(e) => setDetails({ ...details, description: e.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label>Distance (m)</Label><Input type="number" value={details.distance_m} onChange={(e) => setDetails({ ...details, distance_m: e.target.value })} /></div>
+              <div><Label>Gain (m)</Label><Input type="number" value={details.elevation_gain_m} onChange={(e) => setDetails({ ...details, elevation_gain_m: e.target.value })} /></div>
+              <div><Label>Loss (m)</Label><Input type="number" value={details.elevation_loss_m} onChange={(e) => setDetails({ ...details, elevation_loss_m: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Surface</Label>
+                <Select value={details.surface_type} onValueChange={(v) => setDetails({ ...details, surface_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["road", "trail", "mixed", "track", "gravel"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Technicality (1–5)</Label>
+                <Input type="number" min="1" max="5" value={details.technicality_rating} onChange={(e) => setDetails({ ...details, technicality_rating: e.target.value })} />
+              </div>
+            </div>
+            <div><Label>Terrain notes</Label><Textarea value={details.terrain_notes} onChange={(e) => setDetails({ ...details, terrain_notes: e.target.value })} /></div>
+            <Button onClick={saveDetails}>Save route details</Button>
+          </section>
+
+          <section className="space-y-3 mt-6 pt-6 border-t border-border">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alpha controls</h3>
             <div>
               <Label>Manual α override</Label>
               <Input type="number" step="0.1" value={manualAlpha} onChange={(e) => setManualAlpha(e.target.value)} />
@@ -321,14 +351,14 @@ export default function AdminCalibration() {
               <Label>Reason (optional)</Label>
               <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} />
             </div>
-          </div>
-          <DialogFooter className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => editingRoute && decide("reset", editingRoute.id, { reason: editReason })}>Reset to 5</Button>
-            <Button variant="outline" onClick={() => editingRoute && decide("mark_calibrated", editingRoute.id)}>Mark calibrated</Button>
-            <Button onClick={() => editingRoute && decide("manual", editingRoute.id, { new_alpha: parseFloat(manualAlpha), reason: editReason })}>
-              Apply override
-            </Button>
-          </DialogFooter>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => editingRoute && decide("reset", editingRoute.id, { reason: editReason })}>Reset to 5</Button>
+              <Button variant="outline" onClick={() => editingRoute && decide("mark_calibrated", editingRoute.id)}>Mark calibrated</Button>
+              <Button onClick={() => editingRoute && decide("manual", editingRoute.id, { new_alpha: parseFloat(manualAlpha), reason: editReason })}>
+                Apply α override
+              </Button>
+            </div>
+          </section>
         </DialogContent>
       </Dialog>
 
