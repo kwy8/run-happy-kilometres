@@ -17,10 +17,13 @@ import { toast } from "sonner";
 type Route = {
   id: string;
   name: string;
+  description: string | null;
   surface_type: string;
   distance_m: number | null;
   elevation_gain_m: number | null;
+  elevation_loss_m: number | null;
   technicality_rating: number | null;
+  terrain_notes: string | null;
   current_alpha: number;
   suggested_alpha: number | null;
   alpha_status: string;
@@ -70,6 +73,44 @@ export default function AdminCalibration() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [manualAlpha, setManualAlpha] = useState("");
   const [editReason, setEditReason] = useState("");
+  const [details, setDetails] = useState({
+    name: "", description: "", distance_m: "", elevation_gain_m: "", elevation_loss_m: "",
+    surface_type: "road", technicality_rating: "3", terrain_notes: "",
+  });
+
+  function openEdit(r: Route) {
+    setEditingRoute(r);
+    setManualAlpha(String(r.current_alpha));
+    setEditReason("");
+    setDetails({
+      name: r.name ?? "",
+      description: r.description ?? "",
+      distance_m: r.distance_m?.toString() ?? "",
+      elevation_gain_m: r.elevation_gain_m?.toString() ?? "",
+      elevation_loss_m: r.elevation_loss_m?.toString() ?? "",
+      surface_type: r.surface_type ?? "road",
+      technicality_rating: r.technicality_rating?.toString() ?? "3",
+      terrain_notes: r.terrain_notes ?? "",
+    });
+  }
+
+  async function saveDetails() {
+    if (!editingRoute) return;
+    const { error } = await supabase.from("routes").update({
+      name: details.name,
+      description: details.description || null,
+      distance_m: details.distance_m ? parseInt(details.distance_m) : null,
+      elevation_gain_m: details.elevation_gain_m ? parseInt(details.elevation_gain_m) : null,
+      elevation_loss_m: details.elevation_loss_m ? parseInt(details.elevation_loss_m) : null,
+      surface_type: details.surface_type as any,
+      technicality_rating: details.technicality_rating ? parseInt(details.technicality_rating) : null,
+      terrain_notes: details.terrain_notes || null,
+    }).eq("id", editingRoute.id);
+    if (error) return toast.error(error.message);
+    toast.success("Route details saved");
+    setEditingRoute(null);
+    await load();
+  }
 
   const [creating, setCreating] = useState(false);
   const [newRoute, setNewRoute] = useState({
