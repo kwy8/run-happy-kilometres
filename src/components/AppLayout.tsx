@@ -28,11 +28,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <img src={logo} alt="Run Happy Club" className="w-8 h-8" />
-              <span className="font-display font-bold text-foreground">Run Happy Club</span>
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
+              <img src={logo} alt="Run Happy Club" className="w-8 h-8 shrink-0" />
+              <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">Run Happy Club</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1 ml-4">
               {navItems.map((item) => (
@@ -51,8 +51,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-1" /> Sign out
+          <Button variant="ghost" size="sm" onClick={handleSignOut} className="shrink-0">
+            <LogOut className="w-4 h-4 sm:mr-1" /> <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
         {/* Mobile nav */}
