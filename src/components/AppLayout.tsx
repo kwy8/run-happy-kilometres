@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Sun, LogOut, Shield } from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, signOut } = useAuth();
@@ -30,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <Sun className="w-5 h-5 text-primary" />
+              <img src={logo} alt="Random Run Club" className="w-8 h-8" />
               <span className="font-display font-bold text-foreground">Random Run Club</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1 ml-4">
