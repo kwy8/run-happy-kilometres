@@ -31,8 +31,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-4 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
-              <img src={logo} alt="Run Happy Club" className="w-8 h-8 shrink-0" />
-              <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">Run Happy Club</span>
+              <img src={logo} alt="Happy Kilometres" className="w-8 h-8 shrink-0" />
+              <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">Happy Kilometres</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1 ml-4">
               {navItems.map((item) => (

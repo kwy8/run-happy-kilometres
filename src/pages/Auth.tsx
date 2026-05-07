@@ -28,7 +28,7 @@ export default function Auth() {
     try {
       if (isSignUp) {
         await signUp(email, password, displayName);
-        toast.success("Welcome to Run Happy Club! You're all set. 🎉");
+        toast.success("Welcome to Happy Kilometres! You're all set. 🎉");
         navigate(next);
       } else {
         await signIn(email, password);

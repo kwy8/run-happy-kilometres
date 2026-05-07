@@ -27,7 +27,7 @@ export default function Index() {
           >
             <Sun className="w-14 h-14 text-primary mx-auto mb-6 animate-bounce-gentle" />
               <h1 className="text-4xl md:text-6xl font-display font-extrabold text-foreground leading-tight">
-                Run <span className="text-gradient-sunrise">Happy Club</span>
+                Happy <span className="text-gradient-sunrise">Kilometres</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-lg mx-auto">
                 Track your runs, celebrate your progress, and keep showing up. No pressure, just joy.
