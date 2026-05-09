@@ -14,6 +14,7 @@ import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
+import { SourceBadge } from "@/components/SourceBadge";
 
 interface EventData {
   id: string;
@@ -33,6 +34,10 @@ interface Participant {
   time_taken_minutes?: number;
   performance_score?: number | null;
   rpe_notes?: string | null;
+  result_id?: string | null;
+  source?: "qr" | "manual" | null;
+  status?: string | null;
+  proof_image_url?: string | null;
 }
 
 export default function EventDetails() {
@@ -88,9 +93,8 @@ export default function EventDetails() {
           .in("user_id", userIds),
         supabase
           .from("event_results")
-          .select("user_id, duration_s, distance_m, performance_score, rpe_notes, status")
+          .select("id, user_id, duration_s, distance_m, performance_score, rpe_notes, status, source, proof_image_url")
           .eq("event_id", id!)
-          .eq("status", "verified")
           .in("user_id", userIds),
       ]);
 
@@ -102,15 +106,19 @@ export default function EventDetails() {
           runMap.set(r.user_id, { distance_km: r.distance_km, time_taken_minutes: r.time_taken_minutes });
         }
       });
-      // Verified official results take precedence
-      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number; performance_score?: number | null; rpe_notes?: string | null }>();
+      // Official results take precedence (verified or pending). Verified hides RR for non-verified.
+      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number; performance_score?: number | null; rpe_notes?: string | null; result_id: string; source: "qr" | "manual"; status: string; proof_image_url: string | null }>();
       const eventDistanceKm = eventData.route_distance_m ? eventData.route_distance_m / 1000 : undefined;
       (resultsData || []).forEach((r: any) => {
         officialMap.set(r.user_id, {
           distance_km: r.distance_m ? r.distance_m / 1000 : eventDistanceKm,
           time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : undefined,
-          performance_score: r.performance_score,
+          performance_score: r.status === "verified" ? r.performance_score : null,
           rpe_notes: r.rpe_notes,
+          result_id: r.id,
+          source: r.source,
+          status: r.status,
+          proof_image_url: r.proof_image_url,
         });
       });
 
@@ -124,6 +132,10 @@ export default function EventDetails() {
           time_taken_minutes: off?.time_taken_minutes ?? casual?.time_taken_minutes ?? undefined,
           performance_score: off?.performance_score ?? null,
           rpe_notes: off?.rpe_notes ?? null,
+          result_id: off?.result_id ?? null,
+          source: off?.source ?? null,
+          status: off?.status ?? null,
+          proof_image_url: off?.proof_image_url ?? null,
         };
       });
       enriched.sort((a, b) => {
@@ -157,6 +169,13 @@ export default function EventDetails() {
     await supabase.from("event_participants").delete().eq("event_id", id!).eq("user_id", user!.id);
     setHasJoined(false);
     toast.success("You've left the event");
+    fetchData();
+  };
+
+  const verifyResult = async (resultId: string, status: "verified" | "rejected") => {
+    const { error } = await supabase.from("event_results").update({ status }).eq("id", resultId);
+    if (error) return toast.error(error.message);
+    toast.success(status === "verified" ? "Result verified" : "Result rejected");
     fetchData();
   };
 
@@ -196,7 +215,7 @@ export default function EventDetails() {
           {hasJoined ? (
             <>
               <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
-              <Link to={`/add-run?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Log Run for This Event</Button></Link>
+              <Link to={`/submit-result?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Submit Manual Result</Button></Link>
             </>
           ) : (
             <Button onClick={joinEvent}>Join Event</Button>
@@ -218,32 +237,50 @@ export default function EventDetails() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
                     <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
+                    {isAdmin && <TableHead>Verify</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {participants.map((p) => (
-                    <TableRow key={p.user_id}>
-                      <TableCell className="font-medium">{p.display_name}</TableCell>
-                      <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
-                      <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
-                      <TableCell>
-                        {p.distance_km && p.time_taken_minutes
-                          ? formatPace(p.time_taken_minutes / p.distance_km)
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {formatRR(p.performance_score)}
-                      </TableCell>
-                      <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
-                        {p.rpe_notes || "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {participants.map((p) => {
+                    const pending = p.status && p.status !== "verified";
+                    return (
+                      <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
+                        <TableCell className="font-medium">{p.display_name}</TableCell>
+                        <TableCell>
+                          <SourceBadge source={p.source ?? undefined} status={p.status ?? undefined} hasProof={!!p.proof_image_url} />
+                        </TableCell>
+                        <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
+                        <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
+                        <TableCell>
+                          {p.distance_km && p.time_taken_minutes
+                            ? formatPace(p.time_taken_minutes / p.distance_km)
+                            : "—"}
+                        </TableCell>
+                        <TableCell>{formatRR(p.performance_score)}</TableCell>
+                        <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
+                          {p.rpe_notes || "—"}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            {p.result_id && pending ? (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => verifyResult(p.result_id!, "verified")}>✓</Button>
+                                <Button size="sm" variant="ghost" onClick={() => verifyResult(p.result_id!, "rejected")}>✕</Button>
+                              </div>
+                            ) : p.status === "verified" ? (
+                              <span className="text-xs text-muted-foreground">verified</span>
+                            ) : null}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

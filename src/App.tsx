@@ -9,11 +9,12 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
-import AddRun from "./pages/AddRun";
+import SubmitResult from "./pages/SubmitResult";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCalibration from "./pages/AdminCalibration";
+import AdminCasualRuns from "./pages/AdminCasualRuns";
 import CreateEvent from "./pages/CreateEvent";
 import EventTiming from "./pages/EventTiming";
 import Scan from "./pages/Scan";
@@ -34,11 +35,13 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetails />} />
-            <Route path="/add-run" element={<AddRun />} />
+            <Route path="/add-run" element={<SubmitResult />} />
+            <Route path="/submit-result" element={<SubmitResult />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/calibration" element={<AdminCalibration />} />
+            <Route path="/admin/casual-runs" element={<AdminCasualRuns />} />
             <Route path="/admin/create-event" element={<CreateEvent />} />
             <Route path="/admin/events/:eventId/timing" element={<EventTiming />} />
             <Route path="/scan/:eventId" element={<Scan />} />

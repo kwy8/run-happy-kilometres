@@ -162,9 +162,9 @@ export default function Dashboard() {
             <h1 className="text-2xl font-display font-bold text-foreground">{greeting}</h1>
             <p className="text-muted-foreground text-sm">Every step counts 💪</p>
           </div>
-          <Link to="/add-run">
+          <Link to="/events">
             <Button size="sm">
-              <Plus className="w-4 h-4 mr-1" /> Log Run
+              <Plus className="w-4 h-4 mr-1" /> Submit Result
             </Button>
           </Link>
         </div>

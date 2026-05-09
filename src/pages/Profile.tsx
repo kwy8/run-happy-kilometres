@@ -16,11 +16,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
+import { SourceBadge } from "@/components/SourceBadge";
+
 interface HistoryRow {
   id: string;
   date: string;
-  type: "Casual" | string; // event title for official
-  source: "casual" | "official";
+  type: "Casual" | string; // event title for official, or casual route name
+  source: "casual" | "official" | "casual_admin";
+  method?: "qr" | "manual" | null;
+  status?: string | null;
+  has_proof?: boolean;
   distance_km: number;
   time_min: number | null;
   rr: number | null;
@@ -30,7 +35,7 @@ interface HistoryRow {
 const PAGE_SIZE = 20;
 
 export default function Profile() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean; created_at: string } | null>(null);
   const [rows, setRows] = useState<HistoryRow[]>([]);
@@ -52,22 +57,27 @@ export default function Profile() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const [profileRes, runsRes, orRes] = await Promise.all([
+    const promises: any[] = [
       supabase.from("profiles").select("display_name, show_on_leaderboard, created_at").eq("user_id", user!.id).single(),
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes").eq("user_id", user!.id),
       supabase
         .from("event_results")
-        .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date, route_distance_m)")
-        .eq("user_id", user!.id)
-        .eq("status", "verified"),
-    ]);
+        .select("id, event_id, duration_s, distance_m, performance_score, source, status, proof_image_url, events(title, event_date, route_distance_m)")
+        .eq("user_id", user!.id),
+    ];
+    if (isAdmin) {
+      promises.push(
+        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user!.id),
+      );
+    }
+    const [profileRes, runsRes, orRes, casualAdminRes] = await Promise.all(promises);
 
     if (profileRes.data) setProfile(profileRes.data as any);
 
-    const casual: HistoryRow[] = (runsRes.data || []).map((r) => ({
+    const casual: HistoryRow[] = (runsRes.data || []).map((r: any) => ({
       id: `c-${r.id}`,
       date: r.run_date,
-      type: "Casual",
+      type: "Casual (legacy)",
       source: "casual",
       distance_km: Number(r.distance_km),
       time_min: r.time_taken_minutes != null ? Number(r.time_taken_minutes) : null,
@@ -80,14 +90,26 @@ export default function Profile() {
         date: r.events?.event_date || new Date().toISOString().slice(0, 10),
         type: r.events?.title || "Official Event",
         source: "official",
+        method: r.source,
+        status: r.status,
+        has_proof: !!r.proof_image_url,
         distance_km: distM ? distM / 1000 : 0,
         time_min: r.duration_s != null ? r.duration_s / 60 : null,
-        rr: r.performance_score,
+        rr: r.status === "verified" ? r.performance_score : null,
         event_id: r.event_id,
       };
     });
+    const casualAdmin: HistoryRow[] = (casualAdminRes?.data || []).map((r: any) => ({
+      id: `ca-${r.id}`,
+      date: r.created_at.slice(0, 10),
+      type: `🧪 ${r.route_name}`,
+      source: "casual_admin",
+      distance_km: r.distance_m ? r.distance_m / 1000 : 0,
+      time_min: r.duration_s != null ? r.duration_s / 60 : null,
+      rr: r.performance_score,
+    }));
 
-    const merged = [...casual, ...official].sort((a, b) =>
+    const merged = [...casual, ...official, ...casualAdmin].sort((a, b) =>
       a.date < b.date ? 1 : a.date > b.date ? -1 : 0
     );
     setRows(merged);
@@ -101,7 +123,11 @@ export default function Profile() {
   };
 
   const filtered = useMemo(
-    () => rows.filter((r) => (filter === "all" ? true : r.source === filter)),
+    () => rows.filter((r) => {
+      if (filter === "all") return true;
+      if (filter === "official") return r.source === "official";
+      return r.source === "casual" || r.source === "casual_admin";
+    }),
     [rows, filter]
   );
 
@@ -198,13 +224,20 @@ export default function Profile() {
                         <span className="text-muted-foreground">{r.type}</span>
                       );
                       return (
-                        <TableRow key={r.id}>
+                        <TableRow key={r.id} className={r.status && r.status !== "verified" && r.source === "official" ? "opacity-70" : ""}>
                           <TableCell>{new Date(r.date).toLocaleDateString()}</TableCell>
-                          <TableCell>{TypeCell}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {TypeCell}
+                              {r.source === "official" && (
+                                <SourceBadge source={r.method ?? undefined} status={r.status ?? undefined} hasProof={r.has_proof} />
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">{r.distance_km.toFixed(1)} km</TableCell>
                           <TableCell className="text-right">{r.time_min != null ? formatMinSec(r.time_min) : "—"}</TableCell>
                           <TableCell className="text-right">{pace != null ? formatPace(pace) : "—"}</TableCell>
-                          <TableCell className="text-right font-medium">{r.source === "official" ? formatRR(r.rr) : "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{r.rr != null ? formatRR(r.rr) : "—"}</TableCell>
                         </TableRow>
                       );
                     })}
