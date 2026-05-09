@@ -33,6 +33,10 @@ interface Participant {
   time_taken_minutes?: number;
   performance_score?: number | null;
   rpe_notes?: string | null;
+  result_id?: string | null;
+  source?: "qr" | "manual" | null;
+  status?: string | null;
+  proof_image_url?: string | null;
 }
 
 export default function EventDetails() {
@@ -88,9 +92,8 @@ export default function EventDetails() {
           .in("user_id", userIds),
         supabase
           .from("event_results")
-          .select("user_id, duration_s, distance_m, performance_score, rpe_notes, status")
+          .select("id, user_id, duration_s, distance_m, performance_score, rpe_notes, status, source, proof_image_url")
           .eq("event_id", id!)
-          .eq("status", "verified")
           .in("user_id", userIds),
       ]);
 
@@ -102,15 +105,19 @@ export default function EventDetails() {
           runMap.set(r.user_id, { distance_km: r.distance_km, time_taken_minutes: r.time_taken_minutes });
         }
       });
-      // Verified official results take precedence
-      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number; performance_score?: number | null; rpe_notes?: string | null }>();
+      // Official results take precedence (verified or pending). Verified hides RR for non-verified.
+      const officialMap = new Map<string, { distance_km?: number; time_taken_minutes?: number; performance_score?: number | null; rpe_notes?: string | null; result_id: string; source: "qr" | "manual"; status: string; proof_image_url: string | null }>();
       const eventDistanceKm = eventData.route_distance_m ? eventData.route_distance_m / 1000 : undefined;
       (resultsData || []).forEach((r: any) => {
         officialMap.set(r.user_id, {
           distance_km: r.distance_m ? r.distance_m / 1000 : eventDistanceKm,
           time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : undefined,
-          performance_score: r.performance_score,
+          performance_score: r.status === "verified" ? r.performance_score : null,
           rpe_notes: r.rpe_notes,
+          result_id: r.id,
+          source: r.source,
+          status: r.status,
+          proof_image_url: r.proof_image_url,
         });
       });
 
@@ -124,6 +131,10 @@ export default function EventDetails() {
           time_taken_minutes: off?.time_taken_minutes ?? casual?.time_taken_minutes ?? undefined,
           performance_score: off?.performance_score ?? null,
           rpe_notes: off?.rpe_notes ?? null,
+          result_id: off?.result_id ?? null,
+          source: off?.source ?? null,
+          status: off?.status ?? null,
+          proof_image_url: off?.proof_image_url ?? null,
         };
       });
       enriched.sort((a, b) => {
