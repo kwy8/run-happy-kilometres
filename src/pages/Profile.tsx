@@ -57,7 +57,7 @@ export default function Profile() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const promises: Promise<any>[] = [
+    const promises: any[] = [
       supabase.from("profiles").select("display_name, show_on_leaderboard, created_at").eq("user_id", user!.id).single(),
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes").eq("user_id", user!.id),
       supabase
