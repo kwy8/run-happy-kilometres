@@ -172,6 +172,13 @@ export default function EventDetails() {
     fetchData();
   };
 
+  const verifyResult = async (resultId: string, status: "verified" | "rejected") => {
+    const { error } = await supabase.from("event_results").update({ status }).eq("id", resultId);
+    if (error) return toast.error(error.message);
+    toast.success(status === "verified" ? "Result verified" : "Result rejected");
+    fetchData();
+  };
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
