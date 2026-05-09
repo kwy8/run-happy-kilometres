@@ -172,9 +172,11 @@ export default function EventTiming() {
     return <div className="min-h-screen flex items-center justify-center"><Sun className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const origin = window.location.origin;
-  const startUrl = ev.start_qr_token ? `${origin}/scan/${ev.id}?t=${ev.start_qr_token}&p=start` : "";
-  const finishUrl = ev.finish_qr_token ? `${origin}/scan/${ev.id}?t=${ev.finish_qr_token}&p=finish` : "";
+  // Always use the published production URL for QR codes so printed codes don't
+  // point at preview/sandbox hosts (which redirect to the Lovable sign-up page).
+  const liveOrigin = "https://run-happy-kilometres.lovable.app";
+  const startUrl = ev.start_qr_token ? `${liveOrigin}/scan/${ev.id}?t=${ev.start_qr_token}&p=start` : "";
+  const finishUrl = ev.finish_qr_token ? `${liveOrigin}/scan/${ev.id}?t=${ev.finish_qr_token}&p=finish` : "";
 
   return (
     <AppLayout>
