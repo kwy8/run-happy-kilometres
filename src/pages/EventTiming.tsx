@@ -301,6 +301,7 @@ export default function EventTiming() {
                             {(r.status === "verified" || r.status === "disqualified") && (
                               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "pending")}>Revert</Button>
                             )}
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
                           </div>
                         </TableCell>
                       </TableRow>
