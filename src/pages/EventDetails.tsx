@@ -14,6 +14,7 @@ import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
+import { SourceBadge } from "@/components/SourceBadge";
 
 interface EventData {
   id: string;
@@ -207,7 +208,7 @@ export default function EventDetails() {
           {hasJoined ? (
             <>
               <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
-              <Link to={`/add-run?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Log Run for This Event</Button></Link>
+              <Link to={`/submit-result?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Submit Manual Result</Button></Link>
             </>
           ) : (
             <Button onClick={joinEvent}>Join Event</Button>
@@ -229,32 +230,50 @@ export default function EventDetails() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Method</TableHead>
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
                     <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
+                    {isAdmin && <TableHead>Verify</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {participants.map((p) => (
-                    <TableRow key={p.user_id}>
-                      <TableCell className="font-medium">{p.display_name}</TableCell>
-                      <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
-                      <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
-                      <TableCell>
-                        {p.distance_km && p.time_taken_minutes
-                          ? formatPace(p.time_taken_minutes / p.distance_km)
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {formatRR(p.performance_score)}
-                      </TableCell>
-                      <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
-                        {p.rpe_notes || "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {participants.map((p) => {
+                    const pending = p.status && p.status !== "verified";
+                    return (
+                      <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
+                        <TableCell className="font-medium">{p.display_name}</TableCell>
+                        <TableCell>
+                          <SourceBadge source={p.source ?? undefined} status={p.status ?? undefined} hasProof={!!p.proof_image_url} />
+                        </TableCell>
+                        <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
+                        <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
+                        <TableCell>
+                          {p.distance_km && p.time_taken_minutes
+                            ? formatPace(p.time_taken_minutes / p.distance_km)
+                            : "—"}
+                        </TableCell>
+                        <TableCell>{formatRR(p.performance_score)}</TableCell>
+                        <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
+                          {p.rpe_notes || "—"}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            {p.result_id && pending ? (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => verifyResult(p.result_id!, "verified")}>✓</Button>
+                                <Button size="sm" variant="ghost" onClick={() => verifyResult(p.result_id!, "rejected")}>✕</Button>
+                              </div>
+                            ) : p.status === "verified" ? (
+                              <span className="text-xs text-muted-foreground">verified</span>
+                            ) : null}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
