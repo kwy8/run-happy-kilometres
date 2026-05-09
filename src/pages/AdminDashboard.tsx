@@ -151,9 +151,10 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-display font-bold text-foreground">Admin Dashboard</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to="/admin/create-event"><Button variant="outline"><Plus className="w-4 h-4 mr-1" /> Create Event</Button></Link>
             <Link to="/admin/calibration"><Button variant="outline">Route Calibration</Button></Link>
+            <Link to="/admin/casual-runs"><Button variant="outline">Casual Runs (beta)</Button></Link>
             <Button onClick={() => setShowAddRun(true)}><Plus className="w-4 h-4 mr-1" /> Add Run</Button>
           </div>
         </div>
