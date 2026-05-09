@@ -113,19 +113,22 @@ export default function SubmitResult() {
               </p>
             </div>
             <div>
-              <Label>Notes (optional)</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} rows={2} placeholder="How did it feel?" />
+              <Label>RPE — Effort 1-10 (optional)</Label>
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                value={rpe}
+                onChange={(e) => setRpe(e.target.value)}
+                placeholder="e.g. 7"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                How hard did it feel? Doesn't affect your score.
+              </p>
             </div>
             <div>
-              <Label>Proof screenshot (optional)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-                />
-                {proofFile && <span className="text-xs text-muted-foreground truncate max-w-[10rem]">{proofFile.name}</span>}
-              </div>
+              <Label>Notes (optional)</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} rows={2} placeholder="How did it feel?" />
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>
