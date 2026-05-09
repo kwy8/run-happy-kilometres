@@ -237,7 +237,6 @@ export default function EventDetails() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Method</TableHead>
                     <TableHead>Distance</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Pace</TableHead>
@@ -252,9 +251,6 @@ export default function EventDetails() {
                     return (
                       <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
                         <TableCell className="font-medium">{p.display_name}</TableCell>
-                        <TableCell>
-                          <SourceBadge source={p.source ?? undefined} status={p.status ?? undefined} hasProof={!!p.proof_image_url} />
-                        </TableCell>
                         <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
                         <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                         <TableCell>

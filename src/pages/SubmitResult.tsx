@@ -27,8 +27,8 @@ export default function SubmitResult() {
   const [event, setEvent] = useState<EventInfo | null>(null);
   const [timeMin, setTimeMin] = useState("");
   const [timeSec, setTimeSec] = useState("");
+  const [rpe, setRpe] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -56,22 +56,17 @@ export default function SubmitResult() {
     const duration_s = min * 60 + sec;
     if (!duration_s || duration_s > 86400) return toast.error("Enter a valid duration");
 
+    let rpeVal: number | null = null;
+    if (rpe !== "") {
+      const n = parseInt(rpe, 10);
+      if (isNaN(n) || n < 1 || n > 10) return toast.error("RPE must be between 1 and 10");
+      rpeVal = n;
+    }
+
     setSubmitting(true);
     try {
-      let proof_image_url: string | null = null;
-      if (proofFile) {
-        const ext = proofFile.name.split(".").pop() || "jpg";
-        const path = `${user!.id}/${eventId}-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("result-proofs")
-          .upload(path, proofFile, { upsert: true });
-        if (upErr) throw upErr;
-        const { data: pub } = supabase.storage.from("result-proofs").getPublicUrl(path);
-        proof_image_url = pub.publicUrl;
-      }
-
       const { data, error } = await supabase.functions.invoke("submit-manual-result", {
-        body: { event_id: eventId, duration_s, notes: notes || null, proof_image_url },
+        body: { event_id: eventId, duration_s, notes: notes || null, rpe: rpeVal },
       });
       if (error || (data as any)?.error) {
         throw new Error((data as any)?.error || error?.message || "Submission failed");
@@ -118,19 +113,22 @@ export default function SubmitResult() {
               </p>
             </div>
             <div>
-              <Label>Notes (optional)</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} rows={2} placeholder="How did it feel?" />
+              <Label>RPE — Effort 1-10 (optional)</Label>
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                value={rpe}
+                onChange={(e) => setRpe(e.target.value)}
+                placeholder="e.g. 7"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                How hard did it feel? Doesn't affect your score.
+              </p>
             </div>
             <div>
-              <Label>Proof screenshot (optional)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-                />
-                {proofFile && <span className="text-xs text-muted-foreground truncate max-w-[10rem]">{proofFile.name}</span>}
-              </div>
+              <Label>Notes (optional)</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} rows={2} placeholder="How did it feel?" />
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting}>

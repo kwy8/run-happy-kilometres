@@ -12,7 +12,7 @@ interface Body {
   event_id?: string;
   duration_s?: number;
   notes?: string | null;
-  proof_image_url?: string | null;
+  rpe?: number | null;
 }
 
 Deno.serve(async (req) => {
@@ -31,12 +31,18 @@ Deno.serve(async (req) => {
     if (!userId) return json({ error: "Unauthorized" }, 401);
 
     const body = (await req.json().catch(() => ({}))) as Body;
-    const { event_id, duration_s, notes, proof_image_url } = body;
+    const { event_id, duration_s, notes, rpe } = body;
 
     if (!event_id || !duration_s || duration_s <= 0 || duration_s > 86400) {
       return json({ error: "event_id and a valid duration_s (1-86400) are required" }, 400);
     }
     if (notes && notes.length > 1000) return json({ error: "Notes too long" }, 400);
+    let rpeClean: number | null = null;
+    if (rpe != null) {
+      const n = Number(rpe);
+      if (!Number.isInteger(n) || n < 1 || n > 10) return json({ error: "RPE must be an integer 1-10" }, 400);
+      rpeClean = n;
+    }
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -118,7 +124,7 @@ Deno.serve(async (req) => {
           route_id,
           scoring_formula_version: SCORING_VERSION,
           notes: notes ?? null,
-          proof_image_url: proof_image_url ?? null,
+          rpe: rpeClean,
           status: "pending",
         })
         .eq("id", existing.id)
@@ -144,7 +150,7 @@ Deno.serve(async (req) => {
         route_id,
         scoring_formula_version: SCORING_VERSION,
         notes: notes ?? null,
-        proof_image_url: proof_image_url ?? null,
+        rpe: rpeClean,
         status: "pending",
       })
       .select()
