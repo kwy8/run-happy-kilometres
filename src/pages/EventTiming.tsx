@@ -145,6 +145,12 @@ export default function EventTiming() {
     if (error) toast.error(error.message); else { toast.success(`Marked ${status}`); fetchData(); }
   };
 
+  const deleteResult = async (id: string, name: string) => {
+    if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
+    const { error } = await supabase.from("event_results").delete().eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Result deleted"); fetchData(); }
+  };
+
   const setResultTime = async (id: string, field: "start_time" | "finish_time", iso: string | null) => {
     const { error } = await supabase.from("event_results").update({ [field]: iso }).eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Time updated"); fetchData(); }
