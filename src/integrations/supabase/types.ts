@@ -83,6 +83,66 @@ export type Database = {
           },
         ]
       }
+      casual_runs: {
+        Row: {
+          alpha_used: number
+          created_at: string
+          distance_m: number
+          duration_s: number
+          elevation_gain_m: number
+          elevation_loss_m: number | null
+          id: string
+          included_in_calibration: boolean
+          notes: string | null
+          performance_score: number | null
+          route_name: string
+          rpe: number | null
+          scoring_formula_version: number
+          terrain_type: Database["public"]["Enums"]["surface_type"]
+          updated_at: string
+          user_id: string
+          weather_notes: string | null
+        }
+        Insert: {
+          alpha_used?: number
+          created_at?: string
+          distance_m: number
+          duration_s: number
+          elevation_gain_m?: number
+          elevation_loss_m?: number | null
+          id?: string
+          included_in_calibration?: boolean
+          notes?: string | null
+          performance_score?: number | null
+          route_name: string
+          rpe?: number | null
+          scoring_formula_version?: number
+          terrain_type?: Database["public"]["Enums"]["surface_type"]
+          updated_at?: string
+          user_id: string
+          weather_notes?: string | null
+        }
+        Update: {
+          alpha_used?: number
+          created_at?: string
+          distance_m?: number
+          duration_s?: number
+          elevation_gain_m?: number
+          elevation_loss_m?: number | null
+          id?: string
+          included_in_calibration?: boolean
+          notes?: string | null
+          performance_score?: number | null
+          route_name?: string
+          rpe?: number | null
+          scoring_formula_version?: number
+          terrain_type?: Database["public"]["Enums"]["surface_type"]
+          updated_at?: string
+          user_id?: string
+          weather_notes?: string | null
+        }
+        Relationships: []
+      }
       event_comments: {
         Row: {
           body: string
@@ -158,7 +218,9 @@ export type Database = {
           event_id: string
           finish_time: string | null
           id: string
+          notes: string | null
           performance_score: number | null
+          proof_image_url: string | null
           route_id: string | null
           rpe: number | null
           rpe_notes: string | null
@@ -167,6 +229,7 @@ export type Database = {
           source: string
           start_time: string | null
           status: string
+          submitted_duration_s: number | null
           updated_at: string
           user_id: string
         }
@@ -181,7 +244,9 @@ export type Database = {
           event_id: string
           finish_time?: string | null
           id?: string
+          notes?: string | null
           performance_score?: number | null
+          proof_image_url?: string | null
           route_id?: string | null
           rpe?: number | null
           rpe_notes?: string | null
@@ -190,6 +255,7 @@ export type Database = {
           source?: string
           start_time?: string | null
           status?: string
+          submitted_duration_s?: number | null
           updated_at?: string
           user_id: string
         }
@@ -204,7 +270,9 @@ export type Database = {
           event_id?: string
           finish_time?: string | null
           id?: string
+          notes?: string | null
           performance_score?: number | null
+          proof_image_url?: string | null
           route_id?: string | null
           rpe?: number | null
           rpe_notes?: string | null
@@ -213,6 +281,7 @@ export type Database = {
           source?: string
           start_time?: string | null
           status?: string
+          submitted_duration_s?: number | null
           updated_at?: string
           user_id?: string
         }
