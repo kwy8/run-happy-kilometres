@@ -220,13 +220,20 @@ export default function Profile() {
                         <span className="text-muted-foreground">{r.type}</span>
                       );
                       return (
-                        <TableRow key={r.id}>
+                        <TableRow key={r.id} className={r.status && r.status !== "verified" && r.source === "official" ? "opacity-70" : ""}>
                           <TableCell>{new Date(r.date).toLocaleDateString()}</TableCell>
-                          <TableCell>{TypeCell}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {TypeCell}
+                              {r.source === "official" && (
+                                <SourceBadge source={r.method ?? undefined} status={r.status ?? undefined} hasProof={r.has_proof} />
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">{r.distance_km.toFixed(1)} km</TableCell>
                           <TableCell className="text-right">{r.time_min != null ? formatMinSec(r.time_min) : "—"}</TableCell>
                           <TableCell className="text-right">{pace != null ? formatPace(pace) : "—"}</TableCell>
-                          <TableCell className="text-right font-medium">{r.source === "official" ? formatRR(r.rr) : "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{r.rr != null ? formatRR(r.rr) : "—"}</TableCell>
                         </TableRow>
                       );
                     })}
