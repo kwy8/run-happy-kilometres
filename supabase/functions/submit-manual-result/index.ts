@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
           route_id,
           scoring_formula_version: SCORING_VERSION,
           notes: notes ?? null,
-          proof_image_url: proof_image_url ?? null,
+          rpe: rpeClean,
           status: "pending",
         })
         .eq("id", existing.id)
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         route_id,
         scoring_formula_version: SCORING_VERSION,
         notes: notes ?? null,
-        proof_image_url: proof_image_url ?? null,
+        rpe: rpeClean,
         status: "pending",
       })
       .select()
