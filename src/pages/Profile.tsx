@@ -123,7 +123,11 @@ export default function Profile() {
   };
 
   const filtered = useMemo(
-    () => rows.filter((r) => (filter === "all" ? true : r.source === filter)),
+    () => rows.filter((r) => {
+      if (filter === "all") return true;
+      if (filter === "official") return r.source === "official";
+      return r.source === "casual" || r.source === "casual_admin";
+    }),
     [rows, filter]
   );
 
