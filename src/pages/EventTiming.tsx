@@ -145,6 +145,12 @@ export default function EventTiming() {
     if (error) toast.error(error.message); else { toast.success(`Marked ${status}`); fetchData(); }
   };
 
+  const deleteResult = async (id: string, name: string) => {
+    if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
+    const { error } = await supabase.from("event_results").delete().eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Result deleted"); fetchData(); }
+  };
+
   const setResultTime = async (id: string, field: "start_time" | "finish_time", iso: string | null) => {
     const { error } = await supabase.from("event_results").update({ [field]: iso }).eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Time updated"); fetchData(); }
@@ -172,9 +178,11 @@ export default function EventTiming() {
     return <div className="min-h-screen flex items-center justify-center"><Sun className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const origin = window.location.origin;
-  const startUrl = ev.start_qr_token ? `${origin}/scan/${ev.id}?t=${ev.start_qr_token}&p=start` : "";
-  const finishUrl = ev.finish_qr_token ? `${origin}/scan/${ev.id}?t=${ev.finish_qr_token}&p=finish` : "";
+  // Always use the published production URL for QR codes so printed codes don't
+  // point at preview/sandbox hosts (which redirect to the Lovable sign-up page).
+  const liveOrigin = "https://run-happy-kilometres.lovable.app";
+  const startUrl = ev.start_qr_token ? `${liveOrigin}/scan/${ev.id}?t=${ev.start_qr_token}&p=start` : "";
+  const finishUrl = ev.finish_qr_token ? `${liveOrigin}/scan/${ev.id}?t=${ev.finish_qr_token}&p=finish` : "";
 
   return (
     <AppLayout>
@@ -293,6 +301,7 @@ export default function EventTiming() {
                             {(r.status === "verified" || r.status === "disqualified") && (
                               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "pending")}>Revert</Button>
                             )}
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
                           </div>
                         </TableCell>
                       </TableRow>
