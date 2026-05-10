@@ -45,7 +45,7 @@ export default function EventTiming() {
   const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [ev, setEv] = useState<EventRow | null>(null);
-  const [results, setResults] = useState<ResultRow[]>([]);
+  
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [busy, setBusy] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -74,9 +74,7 @@ export default function EventTiming() {
     setEv(evData as EventRow | null);
 
     const [{ data: rs }, { data: parts }] = await Promise.all([
-      supabase.from("event_results")
-        .select("id,user_id,duration_s,status,rpe,performance_score")
-        .eq("event_id", eventId!),
+      supabase.from("event_results").select("user_id").eq("event_id", eventId!),
       supabase.from("event_participants").select("user_id").eq("event_id", eventId!),
     ]);
 
@@ -89,10 +87,7 @@ export default function EventTiming() {
       : { data: [] as any[] };
     const nameMap = new Map((profs || []).map((p) => [p.user_id, p.display_name]));
 
-    const resultRows = (rs || []).map((r) => ({ ...r, display_name: nameMap.get(r.user_id) || "Runner" }));
-    setResults(resultRows);
-
-    const resultUserIds = new Set(resultRows.map((r) => r.user_id));
+    const resultUserIds = new Set((rs || []).map((r) => r.user_id));
     setParticipants(
       (parts || []).map((p) => ({
         user_id: p.user_id,
@@ -122,42 +117,7 @@ export default function EventTiming() {
     }
   };
 
-  const publish = async (publish: boolean) => {
-    setBusy(true);
-    const { data, error } = await supabase.functions.invoke("publish-event-results", {
-      body: { event_id: eventId, publish },
-    });
-    setBusy(false);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Failed");
-    } else {
-      toast.success(publish ? "Results published" : "Results unpublished");
-      fetchData();
-    }
-  };
-
-  const setResultStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("event_results").update({ status }).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success(`Marked ${status}`); fetchData(); }
-  };
-
-  const deleteResult = async (id: string, name: string) => {
-    if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
-    const { error } = await supabase.from("event_results").delete().eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Result deleted"); fetchData(); }
-  };
-
-  const updateField = async (id: string, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("event_results").update(patch).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Updated"); fetchData(); }
-  };
-
-  const approveAllPending = async () => {
-    const ids = results.filter(r => r.status === "pending").map(r => r.id);
-    if (ids.length === 0) { toast.info("No pending results"); return; }
-    const { error } = await supabase.from("event_results").update({ status: "verified" }).in("id", ids);
-    if (error) toast.error(error.message); else { toast.success(`Approved ${ids.length}`); fetchData(); }
-  };
+  const addManualResult = async () => {
 
   const addManualResult = async () => {
     if (!ev) return;
