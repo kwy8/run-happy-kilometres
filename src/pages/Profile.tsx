@@ -16,16 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-import { SourceBadge } from "@/components/SourceBadge";
-
 interface HistoryRow {
   id: string;
   date: string;
-  type: "Casual" | string; // event title for official, or casual route name
+  type: "Casual" | string;
   source: "casual" | "official" | "casual_admin";
-  method?: "qr" | "manual" | null;
   status?: string | null;
-  has_proof?: boolean;
   distance_km: number;
   time_min: number | null;
   rr: number | null;
@@ -62,7 +58,7 @@ export default function Profile() {
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes").eq("user_id", user!.id),
       supabase
         .from("event_results")
-        .select("id, event_id, duration_s, distance_m, performance_score, source, status, proof_image_url, events(title, event_date, route_distance_m)")
+        .select("id, event_id, duration_s, distance_m, performance_score, status, events(title, event_date, route_distance_m)")
         .eq("user_id", user!.id),
     ];
     if (isAdmin) {
@@ -90,9 +86,7 @@ export default function Profile() {
         date: r.events?.event_date || new Date().toISOString().slice(0, 10),
         type: r.events?.title || "Official Event",
         source: "official",
-        method: r.source,
         status: r.status,
-        has_proof: !!r.proof_image_url,
         distance_km: distM ? distM / 1000 : 0,
         time_min: r.duration_s != null ? r.duration_s / 60 : null,
         rr: r.status === "verified" ? r.performance_score : null,
@@ -229,8 +223,8 @@ export default function Profile() {
                           <TableCell>
                             <div className="flex items-center gap-2 flex-wrap">
                               {TypeCell}
-                              {r.source === "official" && (
-                                <SourceBadge source={r.method ?? undefined} status={r.status ?? undefined} hasProof={r.has_proof} />
+                              {r.source === "official" && r.status && r.status !== "verified" && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">{r.status}</span>
                               )}
                             </div>
                           </TableCell>
