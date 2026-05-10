@@ -94,17 +94,12 @@ Deno.serve(async (req) => {
     // 3. Conflict check
     const { data: existing } = await admin
       .from("event_results")
-      .select("id, source, status, start_time, finish_time")
+      .select("id, status")
       .eq("event_id", event_id)
       .eq("user_id", userId)
       .maybeSingle();
 
     if (existing) {
-      if (existing.source === "qr" && existing.start_time && existing.finish_time) {
-        return json({
-          error: "QR result already recorded — ask an admin to override if needed.",
-        }, 409);
-      }
       if (existing.status === "verified") {
         return json({ error: "Your result is already verified and locked." }, 409);
       }
