@@ -242,7 +242,6 @@ export default function EventDetails() {
                     <TableHead>Pace</TableHead>
                     <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
-                    {isAdmin && <TableHead>Verify</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -262,18 +261,6 @@ export default function EventDetails() {
                         <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
                           {p.rpe_notes || "—"}
                         </TableCell>
-                        {isAdmin && (
-                          <TableCell>
-                            {p.result_id && pending ? (
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="outline" onClick={() => verifyResult(p.result_id!, "verified")}>✓</Button>
-                                <Button size="sm" variant="ghost" onClick={() => verifyResult(p.result_id!, "rejected")}>✕</Button>
-                              </div>
-                            ) : p.status === "verified" ? (
-                              <span className="text-xs text-muted-foreground">verified</span>
-                            ) : null}
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })}
