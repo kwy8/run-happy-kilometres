@@ -118,8 +118,6 @@ export default function EventTiming() {
   };
 
   const addManualResult = async () => {
-
-  const addManualResult = async () => {
     if (!ev) return;
     if (!newUserId) return toast.error("Pick a participant");
     const dur = parseDuration(newDuration);
