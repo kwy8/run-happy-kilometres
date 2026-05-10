@@ -68,7 +68,7 @@ export default function Leaderboard() {
     const ids = profs.map((p) => p.user_id);
     setProfiles(profs);
 
-    const [orRes, runsRes] = await Promise.all([
+    const [orRes, runsRes, erDistRes, casualRes] = await Promise.all([
       supabase
         .from("event_results")
         .select("user_id, performance_score, event_id, events(title, event_date)")
@@ -78,6 +78,14 @@ export default function Leaderboard() {
       supabase
         .from("runs")
         .select("user_id, distance_km, time_taken_minutes")
+        .in("user_id", ids),
+      supabase
+        .from("event_results")
+        .select("user_id, distance_m, duration_s, events(route_distance_m)")
+        .in("user_id", ids),
+      supabase
+        .from("casual_runs")
+        .select("user_id, distance_m, duration_s")
         .in("user_id", ids),
     ]);
 
