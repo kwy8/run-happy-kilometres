@@ -215,69 +215,6 @@ export default function EventTiming() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="flex items-center justify-between">
-            Results ({results.length})
-            <div className="flex gap-2">
-              {ev.results_published
-                ? <Button size="sm" variant="outline" onClick={() => publish(false)} disabled={busy}><XCircle className="w-3 h-3 mr-1" /> Unpublish</Button>
-                : <Button size="sm" onClick={() => publish(true)} disabled={busy}><CheckCircle2 className="w-3 h-3 mr-1" /> Publish</Button>}
-            </div>
-          </CardTitle></CardHeader>
-          <CardContent>
-            {results.length === 0 ? <p className="text-sm text-muted-foreground">No results yet.</p> : (
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>Runner</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>RPE</TableHead>
-                  <TableHead>RR</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {results.map((r) => {
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.display_name}</TableCell>
-                        <TableCell>
-                          <Input
-                            defaultValue={r.duration_s != null ? fmtDur(r.duration_s) : ""}
-                            className="h-7 text-xs w-24"
-                            placeholder="mm:ss"
-                            onBlur={(e) => {
-                              const dur = parseDuration(e.target.value);
-                              if (dur && dur !== r.duration_s) {
-                                updateField(r.id, { duration_s: dur, submitted_duration_s: dur, start_time: null, finish_time: null });
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min={1} max={10}
-                            defaultValue={r.rpe ?? ""}
-                            className="h-7 text-xs w-16"
-                            onBlur={(e) => {
-                              const v = e.target.value === "" ? null : parseInt(e.target.value, 10);
-                              if (v === null || (v >= 1 && v <= 10)) {
-                                if (v !== r.rpe) updateField(r.id, { rpe: v });
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{r.performance_score != null ? (r.performance_score * 60).toFixed(1) : "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );
