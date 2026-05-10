@@ -7,7 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, Calendar, MapPin, Plus, Clock } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Clock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
@@ -172,10 +172,11 @@ export default function EventDetails() {
     fetchData();
   };
 
-  const verifyResult = async (resultId: string, status: "verified" | "rejected") => {
-    const { error } = await supabase.from("event_results").update({ status }).eq("id", resultId);
+  const deleteResult = async (resultId: string, name: string) => {
+    if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
+    const { error } = await supabase.from("event_results").delete().eq("id", resultId);
     if (error) return toast.error(error.message);
-    toast.success(status === "verified" ? "Result verified" : "Result rejected");
+    toast.success("Result deleted");
     fetchData();
   };
 
@@ -242,6 +243,7 @@ export default function EventDetails() {
                     <TableHead>Pace</TableHead>
                     <TableHead>{RR_ABBR}</TableHead>
                     <TableHead>Notes</TableHead>
+                    {isAdmin && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -261,6 +263,21 @@ export default function EventDetails() {
                         <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
                           {p.rpe_notes || "—"}
                         </TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            {p.result_id && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteResult(p.result_id!, p.display_name)}
+                                title="Delete result"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
