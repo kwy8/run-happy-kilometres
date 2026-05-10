@@ -68,7 +68,7 @@ export default function Leaderboard() {
     const ids = profs.map((p) => p.user_id);
     setProfiles(profs);
 
-    const [orRes, runsRes] = await Promise.all([
+    const [orRes, runsRes, erDistRes, casualRes] = await Promise.all([
       supabase
         .from("event_results")
         .select("user_id, performance_score, event_id, events(title, event_date)")
@@ -78,6 +78,14 @@ export default function Leaderboard() {
       supabase
         .from("runs")
         .select("user_id, distance_km, time_taken_minutes")
+        .in("user_id", ids),
+      supabase
+        .from("event_results")
+        .select("user_id, distance_m, duration_s, events(route_distance_m)")
+        .in("user_id", ids),
+      supabase
+        .from("casual_runs")
+        .select("user_id, distance_m, duration_s")
         .in("user_id", ids),
     ]);
 
@@ -99,6 +107,29 @@ export default function Leaderboard() {
       a.total_runs += 1;
       if (r.time_taken_minutes && r.distance_km > 0) {
         const pace = Number(r.time_taken_minutes) / Number(r.distance_km);
+        if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
+      }
+    }
+    for (const r of (erDistRes.data || []) as any[]) {
+      const distM = r.distance_m ?? r.events?.route_distance_m;
+      if (!distM) continue;
+      const a = aggMap.get(r.user_id)!;
+      const km = Number(distM) / 1000;
+      a.total_km += km;
+      a.total_runs += 1;
+      if (r.duration_s && km > 0) {
+        const pace = (Number(r.duration_s) / 60) / km;
+        if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
+      }
+    }
+    for (const r of casualRes.data || []) {
+      if (!r.distance_m) continue;
+      const a = aggMap.get(r.user_id)!;
+      const km = Number(r.distance_m) / 1000;
+      a.total_km += km;
+      a.total_runs += 1;
+      if (r.duration_s && km > 0) {
+        const pace = (Number(r.duration_s) / 60) / km;
         if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
       }
     }
