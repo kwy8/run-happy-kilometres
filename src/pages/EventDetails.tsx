@@ -252,7 +252,7 @@ export default function EventDetails() {
                     return (
                       <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
                         <TableCell className="font-medium">{p.display_name}</TableCell>
-                        <TableCell>{p.distance_km ? `${p.distance_km.toFixed(1)} km` : "—"}</TableCell>
+                        <TableCell>{p.distance_km ? `${p.distance_km.toFixed(3)} km` : "—"}</TableCell>
                         <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
                         <TableCell>
                           {p.distance_km && p.time_taken_minutes

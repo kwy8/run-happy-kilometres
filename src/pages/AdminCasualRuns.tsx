@@ -236,7 +236,7 @@ export default function AdminCasualRuns() {
                       <TableCell className="text-xs">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="font-medium">{r.route_name}</TableCell>
                       <TableCell className="text-xs">{r.terrain_type}</TableCell>
-                      <TableCell className="text-right">{(r.distance_m / 1000).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{(r.distance_m / 1000).toFixed(3)}</TableCell>
                       <TableCell className="text-right">{r.elevation_gain_m}</TableCell>
                       <TableCell className="text-right">{Number(r.alpha_used).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium">{formatRR(r.performance_score)}</TableCell>

@@ -252,7 +252,7 @@ export default function Leaderboard() {
                       <TableRow key={r.user_id} className={i < 3 && r.total_km > 0 ? "bg-primary/5" : ""}>
                         <TableCell><Rank i={i} faded={r.total_km === 0} /></TableCell>
                         <TableCell className="font-medium">{nameOf(r.user_id)}</TableCell>
-                        <TableCell className="text-right font-bold">{r.total_km.toFixed(1)} km</TableCell>
+                        <TableCell className="text-right font-bold">{r.total_km.toFixed(3)} km</TableCell>
                         <TableCell className="text-right text-muted-foreground">{r.total_runs}</TableCell>
                         <TableCell className="text-right text-muted-foreground">{r.fastest_pace ? `${r.fastest_pace.toFixed(1)} min/km` : "—"}</TableCell>
                       </TableRow>
