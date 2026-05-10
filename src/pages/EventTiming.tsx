@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, CheckCircle2, XCircle, Plus } from "lucide-react";
+import { Sun, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
@@ -23,26 +22,10 @@ interface EventRow {
   results_published: boolean;
 }
 
-interface ResultRow {
-  id: string;
-  user_id: string;
-  display_name?: string;
-  duration_s: number | null;
-  status: string;
-  rpe: number | null;
-  performance_score: number | null;
-}
-
 interface Participant {
   user_id: string;
   display_name: string;
   has_result: boolean;
-}
-
-function fmtDur(s: number | null) {
-  if (s == null) return "—";
-  const m = Math.floor(s / 60); const r = s % 60;
-  return `${m}:${String(r).padStart(2, "0")}`;
 }
 
 function parseDuration(input: string): number | null {
