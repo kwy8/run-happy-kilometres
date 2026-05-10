@@ -276,7 +276,6 @@ export default function EventTiming() {
           <CardHeader><CardTitle className="flex items-center justify-between">
             Results ({results.length})
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={approveAllPending} disabled={busy}>Approve all pending</Button>
               {ev.results_published
                 ? <Button size="sm" variant="outline" onClick={() => publish(false)} disabled={busy}><XCircle className="w-3 h-3 mr-1" /> Unpublish</Button>
                 : <Button size="sm" onClick={() => publish(true)} disabled={busy}><CheckCircle2 className="w-3 h-3 mr-1" /> Publish</Button>}
@@ -290,16 +289,10 @@ export default function EventTiming() {
                   <TableHead>Duration</TableHead>
                   <TableHead>RPE</TableHead>
                   <TableHead>RR</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {results.map((r) => {
-                    const badgeCls =
-                      r.status === "verified" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                      : r.status === "pending" ? "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
-                      : r.status === "disqualified" ? "bg-muted text-muted-foreground line-through"
-                      : "bg-muted text-muted-foreground";
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.display_name}</TableCell>
@@ -331,20 +324,8 @@ export default function EventTiming() {
                           />
                         </TableCell>
                         <TableCell>{r.performance_score != null ? (r.performance_score * 60).toFixed(1) : "—"}</TableCell>
-                        <TableCell><span className={`inline-block rounded px-2 py-0.5 text-xs ${badgeCls}`}>{r.status}</span></TableCell>
                         <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end flex-wrap">
-                            {r.status === "pending" && (
-                              <>
-                                <Button size="sm" variant="default" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "verified")}>Approve</Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "disqualified")}>DQ</Button>
-                              </>
-                            )}
-                            {(r.status === "verified" || r.status === "disqualified") && (
-                              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setResultStatus(r.id, "pending")}>Revert</Button>
-                            )}
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
-                          </div>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
                         </TableCell>
                       </TableRow>
                     );
