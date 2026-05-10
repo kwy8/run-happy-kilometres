@@ -17,7 +17,6 @@ import AdminCalibration from "./pages/AdminCalibration";
 import AdminCasualRuns from "./pages/AdminCasualRuns";
 import CreateEvent from "./pages/CreateEvent";
 import EventTiming from "./pages/EventTiming";
-import Scan from "./pages/Scan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,7 +43,6 @@ const App = () => (
             <Route path="/admin/casual-runs" element={<AdminCasualRuns />} />
             <Route path="/admin/create-event" element={<CreateEvent />} />
             <Route path="/admin/events/:eventId/timing" element={<EventTiming />} />
-            <Route path="/scan/:eventId" element={<Scan />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

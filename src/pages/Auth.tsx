@@ -12,9 +12,8 @@ import { Sun, ArrowLeft } from "lucide-react";
 export default function Auth() {
   const [params] = useSearchParams();
   const next = params.get("next") || "/dashboard";
-  const fromScan = next.startsWith("/scan/");
   const newRunner = params.get("newRunner") === "1";
-  const [isSignUp, setIsSignUp] = useState(fromScan || newRunner);
+  const [isSignUp, setIsSignUp] = useState(newRunner);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -71,11 +70,6 @@ export default function Auth() {
               </p>
           </CardHeader>
           <CardContent>
-            {fromScan && (
-              <div className="mb-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground text-center">
-                You're being checked in for an event. Sign in or create an account to record your time.
-              </div>
-            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && (
                 <div className="space-y-2">

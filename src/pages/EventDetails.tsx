@@ -14,7 +14,7 @@ import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
-import { SourceBadge } from "@/components/SourceBadge";
+
 
 interface EventData {
   id: string;
