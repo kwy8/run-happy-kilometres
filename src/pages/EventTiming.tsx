@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, CheckCircle2, XCircle, Plus } from "lucide-react";
+import { Sun, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
@@ -23,26 +22,10 @@ interface EventRow {
   results_published: boolean;
 }
 
-interface ResultRow {
-  id: string;
-  user_id: string;
-  display_name?: string;
-  duration_s: number | null;
-  status: string;
-  rpe: number | null;
-  performance_score: number | null;
-}
-
 interface Participant {
   user_id: string;
   display_name: string;
   has_result: boolean;
-}
-
-function fmtDur(s: number | null) {
-  if (s == null) return "—";
-  const m = Math.floor(s / 60); const r = s % 60;
-  return `${m}:${String(r).padStart(2, "0")}`;
 }
 
 function parseDuration(input: string): number | null {
@@ -62,7 +45,7 @@ export default function EventTiming() {
   const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [ev, setEv] = useState<EventRow | null>(null);
-  const [results, setResults] = useState<ResultRow[]>([]);
+  
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [busy, setBusy] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -91,9 +74,7 @@ export default function EventTiming() {
     setEv(evData as EventRow | null);
 
     const [{ data: rs }, { data: parts }] = await Promise.all([
-      supabase.from("event_results")
-        .select("id,user_id,duration_s,status,rpe,performance_score")
-        .eq("event_id", eventId!),
+      supabase.from("event_results").select("user_id").eq("event_id", eventId!),
       supabase.from("event_participants").select("user_id").eq("event_id", eventId!),
     ]);
 
@@ -106,10 +87,7 @@ export default function EventTiming() {
       : { data: [] as any[] };
     const nameMap = new Map((profs || []).map((p) => [p.user_id, p.display_name]));
 
-    const resultRows = (rs || []).map((r) => ({ ...r, display_name: nameMap.get(r.user_id) || "Runner" }));
-    setResults(resultRows);
-
-    const resultUserIds = new Set(resultRows.map((r) => r.user_id));
+    const resultUserIds = new Set((rs || []).map((r) => r.user_id));
     setParticipants(
       (parts || []).map((p) => ({
         user_id: p.user_id,
@@ -137,43 +115,6 @@ export default function EventTiming() {
         .eq("event_id", ev.id);
       fetchData();
     }
-  };
-
-  const publish = async (publish: boolean) => {
-    setBusy(true);
-    const { data, error } = await supabase.functions.invoke("publish-event-results", {
-      body: { event_id: eventId, publish },
-    });
-    setBusy(false);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Failed");
-    } else {
-      toast.success(publish ? "Results published" : "Results unpublished");
-      fetchData();
-    }
-  };
-
-  const setResultStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("event_results").update({ status }).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success(`Marked ${status}`); fetchData(); }
-  };
-
-  const deleteResult = async (id: string, name: string) => {
-    if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
-    const { error } = await supabase.from("event_results").delete().eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Result deleted"); fetchData(); }
-  };
-
-  const updateField = async (id: string, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from("event_results").update(patch).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Updated"); fetchData(); }
-  };
-
-  const approveAllPending = async () => {
-    const ids = results.filter(r => r.status === "pending").map(r => r.id);
-    if (ids.length === 0) { toast.info("No pending results"); return; }
-    const { error } = await supabase.from("event_results").update({ status: "verified" }).in("id", ids);
-    if (error) toast.error(error.message); else { toast.success(`Approved ${ids.length}`); fetchData(); }
   };
 
   const addManualResult = async () => {
@@ -272,69 +213,6 @@ export default function EventTiming() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="flex items-center justify-between">
-            Results ({results.length})
-            <div className="flex gap-2">
-              {ev.results_published
-                ? <Button size="sm" variant="outline" onClick={() => publish(false)} disabled={busy}><XCircle className="w-3 h-3 mr-1" /> Unpublish</Button>
-                : <Button size="sm" onClick={() => publish(true)} disabled={busy}><CheckCircle2 className="w-3 h-3 mr-1" /> Publish</Button>}
-            </div>
-          </CardTitle></CardHeader>
-          <CardContent>
-            {results.length === 0 ? <p className="text-sm text-muted-foreground">No results yet.</p> : (
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>Runner</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>RPE</TableHead>
-                  <TableHead>RR</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {results.map((r) => {
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.display_name}</TableCell>
-                        <TableCell>
-                          <Input
-                            defaultValue={r.duration_s != null ? fmtDur(r.duration_s) : ""}
-                            className="h-7 text-xs w-24"
-                            placeholder="mm:ss"
-                            onBlur={(e) => {
-                              const dur = parseDuration(e.target.value);
-                              if (dur && dur !== r.duration_s) {
-                                updateField(r.id, { duration_s: dur, submitted_duration_s: dur, start_time: null, finish_time: null });
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min={1} max={10}
-                            defaultValue={r.rpe ?? ""}
-                            className="h-7 text-xs w-16"
-                            onBlur={(e) => {
-                              const v = e.target.value === "" ? null : parseInt(e.target.value, 10);
-                              if (v === null || (v >= 1 && v <= 10)) {
-                                if (v !== r.rpe) updateField(r.id, { rpe: v });
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{r.performance_score != null ? (r.performance_score * 60).toFixed(1) : "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteResult(r.id, r.display_name || "Runner")}>Delete</Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

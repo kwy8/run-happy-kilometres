@@ -71,7 +71,7 @@ export default function SubmitResult() {
       if (error || (data as any)?.error) {
         throw new Error((data as any)?.error || error?.message || "Submission failed");
       }
-      toast.success("Result submitted! An admin will verify it shortly.");
+      toast.success("Result submitted! 🎉");
       navigate(`/events/${eventId}`);
     } catch (err: any) {
       toast.error(err.message || "Submission failed");
