@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
           scoring_formula_version: SCORING_VERSION,
           notes: notes ?? null,
           rpe: rpeClean,
-          status: "pending",
+          status: "verified",
         })
         .eq("id", existing.id)
         .select()
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         scoring_formula_version: SCORING_VERSION,
         notes: notes ?? null,
         rpe: rpeClean,
-        status: "pending",
+        status: "verified",
       })
       .select()
       .single();
