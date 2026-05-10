@@ -322,19 +322,16 @@ export type Database = {
           created_at: string
           created_by: string | null
           event_date: string
-          finish_qr_token: string | null
           gpx_file_url: string | null
           id: string
           location: string | null
           meetup_time: string | null
-          qr_enabled: boolean
           results_published: boolean
           route: string | null
           route_distance_m: number | null
           route_elevation_gain_m: number | null
           route_elevation_loss_m: number | null
           route_id: string | null
-          start_qr_token: string | null
           title: string
         }
         Insert: {
@@ -342,19 +339,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_date: string
-          finish_qr_token?: string | null
           gpx_file_url?: string | null
           id?: string
           location?: string | null
           meetup_time?: string | null
-          qr_enabled?: boolean
           results_published?: boolean
           route?: string | null
           route_distance_m?: number | null
           route_elevation_gain_m?: number | null
           route_elevation_loss_m?: number | null
           route_id?: string | null
-          start_qr_token?: string | null
           title: string
         }
         Update: {
@@ -362,19 +356,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_date?: string
-          finish_qr_token?: string | null
           gpx_file_url?: string | null
           id?: string
           location?: string | null
           meetup_time?: string | null
-          qr_enabled?: boolean
           results_published?: boolean
           route?: string | null
           route_distance_m?: number | null
           route_elevation_gain_m?: number | null
           route_elevation_loss_m?: number | null
           route_id?: string | null
-          start_qr_token?: string | null
           title?: string
         }
         Relationships: [
@@ -622,7 +613,6 @@ export type Database = {
           id: string | null
           location: string | null
           meetup_time: string | null
-          qr_enabled: boolean | null
           results_published: boolean | null
           route: string | null
           route_distance_m: number | null
@@ -639,7 +629,6 @@ export type Database = {
           id?: string | null
           location?: string | null
           meetup_time?: string | null
-          qr_enabled?: boolean | null
           results_published?: boolean | null
           route?: string | null
           route_distance_m?: number | null
@@ -656,7 +645,6 @@ export type Database = {
           id?: string | null
           location?: string | null
           meetup_time?: string | null
-          qr_enabled?: boolean | null
           results_published?: boolean | null
           route?: string | null
           route_distance_m?: number | null
