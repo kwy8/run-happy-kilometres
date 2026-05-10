@@ -4,7 +4,7 @@ export const RR_SCALE = 1;
 
 export function formatRR(score: number | null | undefined): string {
   if (score == null || !isFinite(score)) return "—";
-  return (score * RR_SCALE).toFixed(1);
+  return (score * RR_SCALE).toFixed(3);
 }
 
 export const RR_LABEL = "Run Rating";
