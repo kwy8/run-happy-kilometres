@@ -31,22 +31,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let lastUserId: string | null = null;
+    // onAuthStateChange fires INITIAL_SESSION on mount, so we don't need getSession() too.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => checkAdmin(session.user.id), 0);
-      } else {
-        setIsAdmin(false);
-      }
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdmin(session.user.id);
+      // Only re-check admin when the user identity actually changed.
+      if (nextUserId !== lastUserId) {
+        lastUserId = nextUserId;
+        if (nextUserId) {
+          setTimeout(() => checkAdmin(nextUserId), 0);
+        } else {
+          setIsAdmin(false);
+        }
       }
       setLoading(false);
     });
