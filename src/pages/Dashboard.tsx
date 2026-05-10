@@ -227,7 +227,7 @@ export default function Dashboard() {
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Total Distance</p>
-              <p className="text-2xl font-bold text-foreground">{totalKm.toFixed(1)} km</p>
+              <p className="text-2xl font-bold text-foreground">{totalKm.toFixed(3)} km</p>
             </CardContent>
           </Card>
           <Card>
@@ -242,7 +242,7 @@ export default function Dashboard() {
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Latest Distance</p>
               <p className="text-2xl font-bold text-foreground">
-                {latestRun ? `${latestRun.distance_km.toFixed(1)} km` : "—"}
+                {latestRun ? `${latestRun.distance_km.toFixed(3)} km` : "—"}
               </p>
             </CardContent>
           </Card>
@@ -258,7 +258,7 @@ export default function Dashboard() {
               ) : (
                 <div className="text-sm">
                   <p className="text-muted-foreground mb-1">Latest ({new Date(latestRun.run_date).toLocaleDateString()})</p>
-                  <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(1)} km</p>
+                  <p className="font-bold text-foreground">{latestRun.distance_km.toFixed(3)} km</p>
                   {latestRun.time_taken_minutes != null && (
                     <p className="text-muted-foreground">
                       {formatMinSec(latestRun.time_taken_minutes)}
@@ -304,9 +304,9 @@ function ComparisonTable({ latest, previous }: { latest: Run; previous: Run }) {
   const rows = [
     {
       label: "Distance",
-      latest: `${latest.distance_km.toFixed(1)} km`,
-      previous: `${previous.distance_km.toFixed(1)} km`,
-      delta: formatDelta(latest.distance_km - previous.distance_km, (n) => `${n.toFixed(1)} km`),
+      latest: `${latest.distance_km.toFixed(3)} km`,
+      previous: `${previous.distance_km.toFixed(3)} km`,
+      delta: formatDelta(latest.distance_km - previous.distance_km, (n) => `${n.toFixed(3)} km`),
       ...evalDirection(latest.distance_km, previous.distance_km, { lowerIsBetter: false }),
     },
     {

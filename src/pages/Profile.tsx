@@ -160,7 +160,7 @@ export default function Profile() {
         {/* Lifetime stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Total Runs" value={String(stats.totalRuns)} />
-          <StatCard label="Total Distance" value={`${stats.totalKm.toFixed(1)} km`} />
+          <StatCard label="Total Distance" value={`${stats.totalKm.toFixed(3)} km`} />
           <StatCard label={`Best ${RR_ABBR}`} value={stats.bestRR != null ? formatRR(stats.bestRR) : "—"} />
           <StatCard label={`Avg ${RR_ABBR} (last 4)`} value={stats.avgRR != null ? formatRR(stats.avgRR) : "—"} />
         </div>
@@ -228,7 +228,7 @@ export default function Profile() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">{r.distance_km.toFixed(1)} km</TableCell>
+                          <TableCell className="text-right">{r.distance_km.toFixed(3)} km</TableCell>
                           <TableCell className="text-right">{r.time_min != null ? formatMinSec(r.time_min) : "—"}</TableCell>
                           <TableCell className="text-right">{pace != null ? formatPace(pace) : "—"}</TableCell>
                           <TableCell className="text-right font-medium">{r.rr != null ? formatRR(r.rr) : "—"}</TableCell>
