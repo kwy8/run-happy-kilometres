@@ -18,7 +18,7 @@ interface Run {
   time_taken_minutes: number | null;
   notes: string | null;
   performance_score?: number | null;
-  source?: "casual" | "official";
+  source?: "casual" | "official" | "casual_admin";
 }
 
 interface UpcomingEvent {
@@ -30,7 +30,7 @@ interface UpcomingEvent {
 }
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
@@ -44,8 +44,8 @@ export default function Dashboard() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user?.id) fetchData();
-  }, [user?.id]);
+    if (user?.id && !loading) fetchData();
+  }, [user?.id, loading, isAdmin]);
 
   useRealtimeRefetch("event_results", () => {
     if (user) fetchData();
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoadingData(true);
     const today = new Date().toLocaleDateString("en-CA");
-    const [runsRes, profileRes, eventRes, orRes] = await Promise.all([
+    const promises: any[] = [
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
       supabase
@@ -69,9 +69,15 @@ export default function Dashboard() {
         .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date, route_distance_m)")
         .eq("user_id", user!.id)
         .eq("status", "verified"),
-    ]);
+    ];
+    if (isAdmin) {
+      promises.push(
+        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user!.id),
+      );
+    }
+    const [runsRes, profileRes, eventRes, orRes, casualAdminRes] = await Promise.all(promises);
 
-    const casual: Run[] = (runsRes.data || []).map((r) => ({
+    const casual: Run[] = (runsRes.data || []).map((r: any) => ({
       id: r.id,
       distance_km: r.distance_km,
       run_date: r.run_date,
@@ -91,7 +97,16 @@ export default function Dashboard() {
         source: "official",
       };
     });
-    const merged = [...casual, ...official].sort((a, b) =>
+    const casualAdmin: Run[] = (casualAdminRes?.data || []).map((r: any) => ({
+      id: `ca-${r.id}`,
+      distance_km: r.distance_m ? r.distance_m / 1000 : 0,
+      run_date: r.created_at.slice(0, 10),
+      time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : null,
+      notes: `🧪 ${r.route_name}`,
+      performance_score: r.performance_score,
+      source: "casual_admin",
+    }));
+    const merged = [...casual, ...official, ...casualAdmin].sort((a, b) =>
       a.run_date < b.run_date ? 1 : a.run_date > b.run_date ? -1 : 0
     );
     setRuns(merged);
