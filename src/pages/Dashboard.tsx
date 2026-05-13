@@ -18,7 +18,7 @@ interface Run {
   time_taken_minutes: number | null;
   notes: string | null;
   performance_score?: number | null;
-  source?: "casual" | "official";
+  source?: "casual" | "official" | "casual_admin";
 }
 
 interface UpcomingEvent {
