@@ -44,8 +44,8 @@ export default function Profile() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+    if (user && !loading) fetchData();
+  }, [user, loading, isAdmin]);
 
   useRealtimeRefetch("event_results", () => {
     if (user) fetchData();
