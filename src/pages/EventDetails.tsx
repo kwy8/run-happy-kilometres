@@ -7,11 +7,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, Calendar, MapPin, Plus, Clock, Trash2 } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Clock, Trash2, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
+import { buildEventIcs, downloadIcs } from "@/lib/ics";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
 
