@@ -173,6 +173,22 @@ export default function EventDetails() {
     fetchData();
   };
 
+  const exportIcs = () => {
+    if (!event) return;
+    const ics = buildEventIcs({
+      id: event.id,
+      title: event.title,
+      event_date: event.event_date,
+      meetup_time: event.meetup_time,
+      route: event.route,
+      location: event.location,
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+    });
+    const safeTitle = event.title.replace(/[^a-z0-9\-_]+/gi, "-").replace(/^-+|-+$/g, "") || "event";
+    downloadIcs(`${safeTitle}.ics`, ics);
+    toast.success("Calendar file downloaded");
+  };
+
   const deleteResult = async (resultId: string, name: string) => {
     if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
     const { error } = await supabase.from("event_results").delete().eq("id", resultId);
