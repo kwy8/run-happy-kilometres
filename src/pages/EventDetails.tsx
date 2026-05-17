@@ -7,11 +7,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, Calendar, MapPin, Plus, Clock, Trash2 } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Clock, Trash2, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
+import { buildEventIcs, downloadIcs } from "@/lib/ics";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
 
@@ -172,6 +173,22 @@ export default function EventDetails() {
     fetchData();
   };
 
+  const exportIcs = () => {
+    if (!event) return;
+    const ics = buildEventIcs({
+      id: event.id,
+      title: event.title,
+      event_date: event.event_date,
+      meetup_time: event.meetup_time,
+      route: event.route,
+      location: event.location,
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+    });
+    const safeTitle = event.title.replace(/[^a-z0-9\-_]+/gi, "-").replace(/^-+|-+$/g, "") || "event";
+    downloadIcs(`${safeTitle}.ics`, ics);
+    toast.success("Calendar file downloaded");
+  };
+
   const deleteResult = async (resultId: string, name: string) => {
     if (!confirm(`Delete result for ${name}? This cannot be undone.`)) return;
     const { error } = await supabase.from("event_results").delete().eq("id", resultId);
@@ -217,6 +234,7 @@ export default function EventDetails() {
             <>
               <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
               <Link to={`/submit-result?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Submit Manual Result</Button></Link>
+              <Button variant="outline" onClick={exportIcs}><CalendarPlus className="w-4 h-4 mr-1" /> Add to Calendar</Button>
             </>
           ) : (
             <Button onClick={joinEvent}>Join Event</Button>
