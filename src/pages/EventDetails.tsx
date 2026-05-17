@@ -218,6 +218,7 @@ export default function EventDetails() {
             <>
               <Button variant="outline" onClick={leaveEvent}>Leave Event</Button>
               <Link to={`/submit-result?event=${id}`}><Button><Plus className="w-4 h-4 mr-1" /> Submit Manual Result</Button></Link>
+              <Button variant="outline" onClick={exportIcs}><CalendarPlus className="w-4 h-4 mr-1" /> Add to Calendar</Button>
             </>
           ) : (
             <Button onClick={joinEvent}>Join Event</Button>
