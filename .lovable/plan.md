@@ -1,44 +1,26 @@
-## Issue 1 — RR not showing for kwy & Tian
+## Add to Calendar (.ics export) for events
 
-**Root cause:** the DB trigger `recompute_event_result()` runs BEFORE INSERT/UPDATE on `event_results` and contains:
+Let any user who has joined an event download an `.ics` file to import into Apple Calendar, Google Calendar, Outlook, etc.
 
-```sql
-IF NEW.start_time IS NOT NULL AND NEW.finish_time IS NOT NULL THEN
-  NEW.duration_s := EXTRACT(EPOCH FROM (NEW.finish_time - NEW.start_time))::integer;
-ELSE
-  NEW.duration_s := NULL;   -- wipes the value!
-END IF;
-```
+### Scope
+- New button on the Event Details page, visible only when the user has joined the event (next to "Leave Event" / "Submit Manual Result").
+- Label: "Add to Calendar" with a calendar icon.
+- Clicking it generates and downloads `<event-title>.ics` client-side — no backend needed.
 
-Manual submissions send `duration_s` directly (no start/finish times) — the trigger immediately nulls it, so `performance_score` stays null. Both verified rows in the DB have `distance_m=5555`, `alpha_used=8`, `duration_s=null`.
+### .ics contents
+- `SUMMARY`: event title
+- `DTSTART` / `DTEND`: from `event_date` + `meetup_time` (default 1-hour duration if no end time). If `meetup_time` is null, emit an all-day event.
+- `LOCATION`: event `location` (Meet-up Point)
+- `DESCRIPTION`: route name + link back to the event details page
+- `UID`: `${event.id}@happykilometres`
+- `DTSTAMP`: now (UTC)
+- Standard `VCALENDAR` / `VEVENT` wrapper with `PRODID:-//Happy Kilometres//EN`
 
-**Fix (migration):**
-- Rewrite `recompute_event_result()` so it only derives `duration_s` from start/finish when both are present, and otherwise **keeps the value the caller supplied** (or falls back to `submitted_duration_s`).
-- Backfill: set `duration_s = submitted_duration_s` for any row where it's null, then re-trigger an UPDATE so `performance_score` recomputes.
+### Implementation
+- New helper `src/lib/ics.ts` with `buildEventIcs(event)` returning a string, and `downloadIcs(filename, content)` that creates a Blob and triggers download.
+- Wire button in `src/pages/EventDetails.tsx` inside the `hasJoined` branch.
 
-## Issue 2 — Remove the Results section from the admin Timing page
-
-Admin no longer needs to approve/reject. The "Results" card in `EventTiming.tsx` exists only for that workflow now and should be removed entirely. Keep:
-- Route Parameters card (still needed)
-- Add Result for Participant card (admin manual entry)
-
-Also delete the now-unused helpers (`setResultStatus`, `approveAllPending`, status badge logic, inline edit fields, etc.).
-
-## Issue 3 — Admin still needs a way to delete bad rows
-
-(You mentioned this earlier re: the test "Sunday Run #4" entries.) Move that to the public participants table on `EventDetails.tsx`: when `isAdmin`, show a small **Delete** icon-button in each row. Replaces the removed "Verify" column.
-
-## Other cleanup
-
-- `SubmitResult.tsx` toast still says "An admin will verify it shortly" — change to "Result submitted! 🎉" since results auto-verify now.
-
-## Files touched
-
-```text
-MIGRATE  fix recompute_event_result trigger; backfill duration_s & RR
-EDIT     src/pages/EventTiming.tsx     (remove Results card + dead helpers)
-EDIT     src/pages/EventDetails.tsx    (admin Delete button per participant)
-EDIT     src/pages/SubmitResult.tsx    (update toast message)
-```
-
-No open questions — proceeding straight to implementation on approval.
+### Notes
+- No new dependencies — hand-rolled .ics (small, well-defined format).
+- No DB changes, no edge function.
+- Times treated as local (floating time) since `meetup_time` has no timezone, which matches user intuition ("9:00 AM local").
