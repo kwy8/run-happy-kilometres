@@ -101,7 +101,13 @@ export default function Profile() {
     );
     setRows(merged);
     setLoadingData(false);
-  };
+  }, [user, isAdmin]);
+
+  useEffect(() => {
+    if (user && !loading && !adminLoading) fetchData();
+  }, [user, loading, adminLoading, fetchData]);
+
+  useRealtimeRefetch("event_results", fetchData);
 
   const toggleLeaderboard = async (checked: boolean) => {
     await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);
