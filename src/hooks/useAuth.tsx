@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  adminLoading: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -19,8 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
 
   const checkAdmin = async (userId: string) => {
+    setAdminLoading(true);
     const { data } = await supabase
       .from("user_roles")
       .select("role")
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq("role", "admin")
       .maybeSingle();
     setIsAdmin(!!data);
+    setAdminLoading(false);
   };
 
   useEffect(() => {
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => checkAdmin(nextUserId), 0);
         } else {
           setIsAdmin(false);
+          setAdminLoading(false);
         }
       }
       setLoading(false);
@@ -75,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, isAdmin, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, isAdmin, adminLoading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,26 +1,34 @@
-## Add to Calendar (.ics export) for events
+## Diagnostics summary
 
-Let any user who has joined an event download an `.ics` file to import into Apple Calendar, Google Calendar, Outlook, etc.
+- The dashboard itself is not CPU-heavy: ~226ms script time, small DOM, low memory, no console errors.
+- The visible delay is data loading: five dashboard database reads took ~4.4s and admin role lookup took ~5.7s.
+- The dashboard currently fetches data twice on first load because `isAdmin` changes after auth, causing the main dashboard `useEffect` to run once before admin is known and again after.
+- Some reads are broader than needed: `runs` on Dashboard is not filtered by current user, and result/history queries do not have optimal query indexes for the filters being used.
+- Backend status is up, but the DB health endpoint timed out once, so code should reduce unnecessary database pressure rather than relying on retries.
 
-### Scope
-- New button on the Event Details page, visible only when the user has joined the event (next to "Leave Event" / "Submit Manual Result").
-- Label: "Add to Calendar" with a calendar icon.
-- Clicking it generates and downloads `<event-title>.ics` client-side — no backend needed.
+## Fix plan
 
-### .ics contents
-- `SUMMARY`: event title
-- `DTSTART` / `DTEND`: from `event_date` + `meetup_time` (default 1-hour duration if no end time). If `meetup_time` is null, emit an all-day event.
-- `LOCATION`: event `location` (Meet-up Point)
-- `DESCRIPTION`: route name + link back to the event details page
-- `UID`: `${event.id}@happykilometres`
-- `DTSTAMP`: now (UTC)
-- Standard `VCALENDAR` / `VEVENT` wrapper with `PRODID:-//Happy Kilometres//EN`
+1. **Stop duplicate dashboard loads**
+   - Update auth state so the app knows when the admin role check is complete.
+   - On Dashboard/Profile, wait for auth + admin status to settle before fetching admin-dependent data.
+   - This prevents the initial double fetch visible in the network trace.
 
-### Implementation
-- New helper `src/lib/ics.ts` with `buildEventIcs(event)` returning a string, and `downloadIcs(filename, content)` that creates a Blob and triggers download.
-- Wire button in `src/pages/EventDetails.tsx` inside the `hasJoined` branch.
+2. **Tighten dashboard queries**
+   - Filter legacy `runs` by the current user on Dashboard, matching Profile.
+   - Add small limits/order to history sources where Dashboard only needs summary/latest values.
+   - Keep casual admin runs included for admins only, as requested previously.
 
-### Notes
-- No new dependencies — hand-rolled .ics (small, well-defined format).
-- No DB changes, no edge function.
-- Times treated as local (floating time) since `meetup_time` has no timezone, which matches user intuition ("9:00 AM local").
+3. **Make realtime refetch stable**
+   - Ensure realtime subscriptions don’t capture stale callbacks and don’t accidentally refetch with old state.
+   - Keep the existing behavior of refreshing when event results change.
+
+4. **Add database indexes for the slow read patterns**
+   - `runs(user_id, run_date desc)` for personal run history/dashboard reads.
+   - `event_results(user_id, status)` for verified result reads.
+   - `events(event_date)` for upcoming event lookup.
+   - `casual_runs(user_id, created_at desc)` for admin-added casual run history.
+   - These are additive performance indexes only; no data model or access rule changes.
+
+5. **Validate after implementation**
+   - Re-run browser performance/network diagnostics on `/dashboard`.
+   - Confirm only one initial dashboard data batch runs and that the page no longer waits on duplicated reads.

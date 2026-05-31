@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ interface HistoryRow {
 const PAGE_SIZE = 20;
 
 export default function Profile() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, adminLoading } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean; created_at: string } | null>(null);
   const [rows, setRows] = useState<HistoryRow[]>([]);
@@ -43,15 +43,8 @@ export default function Profile() {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
-  useEffect(() => {
-    if (user && !loading) fetchData();
-  }, [user, loading, isAdmin]);
-
-  useRealtimeRefetch("event_results", () => {
-    if (user) fetchData();
-  });
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user) return;
     setLoadingData(true);
     const promises: any[] = [
       supabase.from("profiles").select("display_name, show_on_leaderboard, created_at").eq("user_id", user!.id).single(),
@@ -108,7 +101,13 @@ export default function Profile() {
     );
     setRows(merged);
     setLoadingData(false);
-  };
+  }, [user, isAdmin]);
+
+  useEffect(() => {
+    if (user && !loading && !adminLoading) fetchData();
+  }, [user, loading, adminLoading, fetchData]);
+
+  useRealtimeRefetch("event_results", fetchData);
 
   const toggleLeaderboard = async (checked: boolean) => {
     await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,7 @@ interface UpcomingEvent {
 }
 
 export default function Dashboard() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, adminLoading } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
@@ -43,20 +43,13 @@ export default function Dashboard() {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
-  useEffect(() => {
-    if (user?.id && !loading) fetchData();
-  }, [user?.id, loading, isAdmin]);
-
-  useRealtimeRefetch("event_results", () => {
-    if (user) fetchData();
-  });
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user) return;
     setLoadingData(true);
     const today = new Date().toLocaleDateString("en-CA");
     const promises: any[] = [
-      supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").order("run_date", { ascending: false }),
-      supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user!.id).single(),
+      supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").eq("user_id", user.id).order("run_date", { ascending: false }),
+      supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user.id).single(),
       supabase
         .from("events")
         .select("id, title, event_date, meetup_time, location")
@@ -67,12 +60,12 @@ export default function Dashboard() {
       supabase
         .from("event_results")
         .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date, route_distance_m)")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .eq("status", "verified"),
     ];
     if (isAdmin) {
       promises.push(
-        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user!.id),
+        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user.id),
       );
     }
     const [runsRes, profileRes, eventRes, orRes, casualAdminRes] = await Promise.all(promises);
@@ -117,7 +110,7 @@ export default function Dashboard() {
         .from("event_participants")
         .select("id")
         .eq("event_id", eventRes.data.id)
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .maybeSingle();
       setHasJoined(!!joinData);
     } else {
@@ -125,7 +118,14 @@ export default function Dashboard() {
       setHasJoined(false);
     }
     setLoadingData(false);
-  };
+  }, [user, isAdmin]);
+
+  useEffect(() => {
+    if (user?.id && !loading && !adminLoading) fetchData();
+  }, [user?.id, loading, adminLoading, fetchData]);
+
+  useRealtimeRefetch("event_results", fetchData);
+
 
   const joinEvent = async () => {
     if (!upcomingEvent || hasJoined) return;
