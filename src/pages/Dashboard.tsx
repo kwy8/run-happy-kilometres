@@ -144,9 +144,6 @@ export default function Dashboard() {
     toast.success("You're in! See you there 🌅");
   };
 
-
-
-
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
