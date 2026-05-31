@@ -30,7 +30,7 @@ interface UpcomingEvent {
 }
 
 export default function Dashboard() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, adminLoading } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [profile, setProfile] = useState<{ display_name: string; show_on_leaderboard: boolean } | null>(null);
