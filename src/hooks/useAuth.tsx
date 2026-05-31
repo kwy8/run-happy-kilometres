@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => checkAdmin(nextUserId), 0);
         } else {
           setIsAdmin(false);
+          setAdminLoading(false);
         }
       }
       setLoading(false);
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, isAdmin, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, isAdmin, adminLoading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
