@@ -144,9 +144,13 @@ export default function Dashboard() {
     toast.success("You're in! See you there 🌅");
   };
 
-
-
-
+  if (loading || loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Sun className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   const latestRun = runs[0] || null;
   const previousRun = runs[1] || null;
