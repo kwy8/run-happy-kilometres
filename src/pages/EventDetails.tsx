@@ -15,6 +15,7 @@ import { formatRR, RR_ABBR } from "@/lib/score";
 import { buildEventIcs, downloadIcs } from "@/lib/ics";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
+import { BonusChallenge, type BonusChallengeRow, type BonusPick } from "@/components/BonusChallenge";
 
 
 interface EventData {
@@ -49,6 +50,8 @@ export default function EventDetails() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [hasJoined, setHasJoined] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [challenge, setChallenge] = useState<BonusChallengeRow | null>(null);
+  const [picks, setPicks] = useState<BonusPick[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -59,6 +62,12 @@ export default function EventDetails() {
   }, [user, id]);
 
   useRealtimeRefetch("event_results", () => {
+    if (user && id) fetchData();
+  });
+  useRealtimeRefetch("event_bonus_challenges", () => {
+    if (user && id) fetchData();
+  });
+  useRealtimeRefetch("event_bonus_picks", () => {
     if (user && id) fetchData();
   });
 
@@ -75,6 +84,14 @@ export default function EventDetails() {
       return;
     }
     setEvent(eventData as unknown as EventData);
+
+    // Bonus challenge + picks (independent of participants)
+    const [{ data: chData }, { data: pickData }] = await Promise.all([
+      supabase.from("event_bonus_challenges").select("*").eq("event_id", id!).maybeSingle(),
+      supabase.from("event_bonus_picks").select("user_id, pick").eq("event_id", id!),
+    ]);
+    setChallenge((chData as BonusChallengeRow | null) ?? null);
+    setPicks((pickData as BonusPick[] | null) ?? []);
 
     const { data: parts } = await supabase
       .from("event_participants")
@@ -246,64 +263,108 @@ export default function EventDetails() {
           )}
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>Participants ({participants.length})</CardTitle></CardHeader>
-          <CardContent>
-            {participants.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No participants yet. Be the first to join!</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Distance</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Pace</TableHead>
-                    <TableHead>{RR_ABBR}</TableHead>
-                    <TableHead>Notes</TableHead>
-                    {isAdmin && <TableHead className="w-12"></TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {participants.map((p) => {
-                    const pending = p.status && p.status !== "verified";
-                    return (
-                      <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
-                        <TableCell className="font-medium">{p.display_name}</TableCell>
-                        <TableCell>{p.distance_km ? `${p.distance_km.toFixed(3)} km` : "—"}</TableCell>
-                        <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
-                        <TableCell>
-                          {p.distance_km && p.time_taken_minutes
-                            ? formatPace(p.time_taken_minutes / p.distance_km)
-                            : "—"}
-                        </TableCell>
-                        <TableCell>{formatRR(p.performance_score)}</TableCell>
-                        <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
-                          {p.rpe_notes || "—"}
-                        </TableCell>
-                        {isAdmin && (
-                          <TableCell className="text-right">
-                            {p.result_id && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                onClick={() => deleteResult(p.result_id!, p.display_name)}
-                                title="Delete result"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {(() => {
+          const lockAt = new Date(`${event.event_date}T${event.meetup_time ?? "23:59:59"}`);
+          const pickByUser = new Map(picks.map((p) => [p.user_id, p.pick]));
+          return (
+            <>
+              <BonusChallenge
+                eventId={event.id}
+                userId={user!.id}
+                isAdmin={isAdmin}
+                lockAt={lockAt}
+                challenge={challenge}
+                picks={picks}
+                onChange={fetchData}
+              />
+
+              <Card>
+                <CardHeader><CardTitle>Participants ({participants.length})</CardTitle></CardHeader>
+                <CardContent>
+                  {participants.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No participants yet. Be the first to join!</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Distance</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Pace</TableHead>
+                          <TableHead>{RR_ABBR}</TableHead>
+                          {challenge && <TableHead>Pick</TableHead>}
+                          <TableHead>Notes</TableHead>
+                          {isAdmin && <TableHead className="w-12"></TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {participants.map((p) => {
+                          const pending = p.status && p.status !== "verified";
+                          const userPick = pickByUser.get(p.user_id);
+                          const wrong = challenge?.correct_answer && userPick && userPick !== challenge.correct_answer;
+                          const pickLabel = userPick
+                            ? (userPick === "a" ? challenge!.option_a : challenge!.option_b)
+                            : null;
+                          return (
+                            <TableRow key={p.user_id} className={pending ? "opacity-70" : ""}>
+                              <TableCell className="font-medium">{p.display_name}</TableCell>
+                              <TableCell>
+                                {p.distance_km ? `${p.distance_km.toFixed(3)} km` : "—"}
+                                {wrong && (
+                                  <span className="ml-1 text-xs text-destructive font-medium">
+                                    +{challenge!.penalty_m} m
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>{formatMinSec(p.time_taken_minutes)}</TableCell>
+                              <TableCell>
+                                {p.distance_km && p.time_taken_minutes
+                                  ? formatPace(p.time_taken_minutes / p.distance_km)
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>{formatRR(p.performance_score)}</TableCell>
+                              {challenge && (
+                                <TableCell className="text-xs">
+                                  {pickLabel ? (
+                                    <span className={
+                                      challenge.correct_answer
+                                        ? (wrong ? "text-destructive" : "text-emerald-600 font-medium")
+                                        : "text-muted-foreground"
+                                    }>
+                                      {pickLabel}
+                                    </span>
+                                  ) : <span className="text-muted-foreground">—</span>}
+                                </TableCell>
+                              )}
+                              <TableCell className="max-w-[14rem] truncate text-muted-foreground" title={p.rpe_notes || ""}>
+                                {p.rpe_notes || "—"}
+                              </TableCell>
+                              {isAdmin && (
+                                <TableCell className="text-right">
+                                  {p.result_id && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => deleteResult(p.result_id!, p.display_name)}
+                                      title="Delete result"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          );
+        })()}
 
         <EventComments eventId={id!} currentUserId={user!.id} />
       </div>

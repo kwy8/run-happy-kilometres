@@ -1,34 +1,50 @@
-## Diagnostics summary
+# Bonus Challenge for Events
 
-- The dashboard itself is not CPU-heavy: ~226ms script time, small DOM, low memory, no console errors.
-- The visible delay is data loading: five dashboard database reads took ~4.4s and admin role lookup took ~5.7s.
-- The dashboard currently fetches data twice on first load because `isAdmin` changes after auth, causing the main dashboard `useEffect` to run once before admin is known and again after.
-- Some reads are broader than needed: `runs` on Dashboard is not filtered by current user, and result/history queries do not have optimal query indexes for the filters being used.
-- Backend status is up, but the DB health endpoint timed out once, so code should reduce unnecessary database pressure rather than relying on retries.
+Let admins attach a fun 2-option pick to any event (e.g. "World Cup qualifier: Germany or Norway?"). Participants lock in their pick before the event starts. After the admin sets the correct answer, wrong pickers get a penalty distance (default 800m) added to the participant table display.
 
-## Fix plan
+## User flow
 
-1. **Stop duplicate dashboard loads**
-   - Update auth state so the app knows when the admin role check is complete.
-   - On Dashboard/Profile, wait for auth + admin status to settle before fetching admin-dependent data.
-   - This prevents the initial double fetch visible in the network trace.
+**Admin (on event details / create event page)**
+- Optional "Bonus Challenge" section: question, option A, option B, penalty meters (default 800).
+- After the event, admin picks the correct answer from a dropdown. This locks results.
 
-2. **Tighten dashboard queries**
-   - Filter legacy `runs` by the current user on Dashboard, matching Profile.
-   - Add small limits/order to history sources where Dashboard only needs summary/latest values.
-   - Keep casual admin runs included for admins only, as requested previously.
+**Participant (on event details page)**
+- If challenge exists and the meet-up time hasn't passed: see the question and two buttons to pick. Can change pick until lock time.
+- After lock: pick is read-only; shows their choice.
+- After correct answer set: each row shows a ✓ or ✗ next to the pick, and wrong pickers show `+800 m penalty` appended to their distance column.
 
-3. **Make realtime refetch stable**
-   - Ensure realtime subscriptions don’t capture stale callbacks and don’t accidentally refetch with old state.
-   - Keep the existing behavior of refreshing when event results change.
+## Scope rules
 
-4. **Add database indexes for the slow read patterns**
-   - `runs(user_id, run_date desc)` for personal run history/dashboard reads.
-   - `event_results(user_id, status)` for verified result reads.
-   - `events(event_date)` for upcoming event lookup.
-   - `casual_runs(user_id, created_at desc)` for admin-added casual run history.
-   - These are additive performance indexes only; no data model or access rule changes.
+- Penalty is **display only** — appended visually to the distance cell on the EventDetails participants table. It does **not** modify `event_results.distance_m`, `performance_score`, leaderboards, stats, or scoring. (Matches the memory rule: scoring stays reproducible.)
+- Picks lock at `event_date + meetup_time` (if no meetup_time set, lock at end of event_date).
+- Only admins create/edit the challenge and set the correct answer.
 
-5. **Validate after implementation**
-   - Re-run browser performance/network diagnostics on `/dashboard`.
-   - Confirm only one initial dashboard data batch runs and that the page no longer waits on duplicated reads.
+## Technical changes
+
+### Database (one migration)
+
+New table `public.event_bonus_challenges`:
+- `id`, `event_id` (unique, one challenge per event), `question` text, `option_a` text, `option_b` text, `correct_answer` text nullable (`'a'|'b'`), `penalty_m` int default 800, `created_at`, `updated_at`.
+- Grants + RLS: authenticated SELECT; admins ALL.
+
+New table `public.event_bonus_picks`:
+- `id`, `event_id`, `user_id`, `pick` (`'a'|'b'`), `created_at`, `updated_at`.
+- Unique `(event_id, user_id)`.
+- Grants + RLS: authenticated SELECT (so everyone can see others' picks after lock); user can INSERT/UPDATE own row only if event's meet-up datetime is in the future (enforced via trigger checking `events.event_date`/`meetup_time`); admins ALL.
+
+Both tables get `updated_at` trigger.
+
+### Frontend
+
+- `src/pages/CreateEvent.tsx`: add optional bonus-challenge fields (question, option A/B, penalty meters).
+- `src/pages/EventDetails.tsx`:
+  - Fetch challenge + picks alongside existing data (added to the existing `Promise.all`).
+  - New `BonusChallenge` card above Participants: shows question, two pick buttons (or read-only state after lock), and admin-only correct-answer selector once locked.
+  - In participants table: show pick badge (A/B + ✓/✗ once revealed). Distance cell appends ` +{penalty}m` for wrong pickers.
+- Extend the existing `useRealtimeRefetch` subscription pattern for `event_bonus_picks` so picks update live.
+
+### Non-goals
+
+- No effect on `performance_score`, `casual_runs`, stats cards, or leaderboards.
+- No notifications/emails (keep separate from the email-reminder discussion).
+- No multi-option / free-form variants for now.

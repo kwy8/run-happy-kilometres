@@ -143,6 +143,69 @@ export type Database = {
         }
         Relationships: []
       }
+      event_bonus_challenges: {
+        Row: {
+          correct_answer: string | null
+          created_at: string
+          event_id: string
+          id: string
+          option_a: string
+          option_b: string
+          penalty_m: number
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          option_a: string
+          option_b: string
+          penalty_m?: number
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          option_a?: string
+          option_b?: string
+          penalty_m?: number
+          question?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_bonus_picks: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          pick: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          pick: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          pick?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       event_comments: {
         Row: {
           body: string
