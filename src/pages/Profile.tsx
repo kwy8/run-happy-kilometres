@@ -46,20 +46,14 @@ export default function Profile() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoadingData(true);
-    const promises: any[] = [
+    const [profileRes, runsRes, orRes] = await Promise.all([
       supabase.from("profiles").select("display_name, show_on_leaderboard, created_at").eq("user_id", user!.id).single(),
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes").eq("user_id", user!.id),
       supabase
         .from("event_results")
         .select("id, event_id, duration_s, distance_m, performance_score, status, events(title, event_date, route_distance_m)")
         .eq("user_id", user!.id),
-    ];
-    if (isAdmin) {
-      promises.push(
-        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user!.id),
-      );
-    }
-    const [profileRes, runsRes, orRes, casualAdminRes] = await Promise.all(promises);
+    ]);
 
     if (profileRes.data) setProfile(profileRes.data as any);
 
@@ -86,26 +80,52 @@ export default function Profile() {
         event_id: r.event_id,
       };
     });
-    const casualAdmin: HistoryRow[] = (casualAdminRes?.data || []).map((r: any) => ({
-      id: `ca-${r.id}`,
-      date: r.created_at.slice(0, 10),
-      type: `🧪 ${r.route_name}`,
-      source: "casual_admin",
-      distance_km: r.distance_m ? r.distance_m / 1000 : 0,
-      time_min: r.duration_s != null ? r.duration_s / 60 : null,
-      rr: r.performance_score,
-    }));
-
-    const merged = [...casual, ...official, ...casualAdmin].sort((a, b) =>
+    const merged = [...casual, ...official].sort((a, b) =>
       a.date < b.date ? 1 : a.date > b.date ? -1 : 0
     );
     setRows(merged);
     setLoadingData(false);
-  }, [user, isAdmin]);
+  }, [user]);
 
   useEffect(() => {
-    if (user && !loading && !adminLoading) fetchData();
-  }, [user, loading, adminLoading, fetchData]);
+    if (user && !loading) fetchData();
+  }, [user, loading, fetchData]);
+
+  useEffect(() => {
+    if (!user?.id || loading || adminLoading) return;
+    if (!isAdmin) {
+      setRows((current) => current.filter((row) => row.source !== "casual_admin"));
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAdminRows = async () => {
+      const { data } = await supabase
+        .from("casual_runs")
+        .select("id, route_name, distance_m, duration_s, performance_score, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      const casualAdmin: HistoryRow[] = (data || []).map((r: any) => ({
+        id: `ca-${r.id}`,
+        date: r.created_at.slice(0, 10),
+        type: `🧪 ${r.route_name}`,
+        source: "casual_admin",
+        distance_km: r.distance_m ? r.distance_m / 1000 : 0,
+        time_min: r.duration_s != null ? r.duration_s / 60 : null,
+        rr: r.performance_score,
+      }));
+      setRows((current) =>
+        [...current.filter((row) => row.source !== "casual_admin"), ...casualAdmin].sort((a, b) =>
+          a.date < b.date ? 1 : a.date > b.date ? -1 : 0
+        )
+      );
+    };
+    fetchAdminRows();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loading, adminLoading, isAdmin]);
 
   useRealtimeRefetch("event_results", fetchData);
 
