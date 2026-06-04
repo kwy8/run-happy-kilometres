@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Sun } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR, RR_TOOLTIP } from "@/lib/score";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -159,7 +158,7 @@ export default function Profile() {
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Sun className="w-8 h-8 text-primary animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-label="Loading" />
       </div>
     );
   }
