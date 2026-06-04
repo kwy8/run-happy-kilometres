@@ -64,6 +64,12 @@ export default function EventDetails() {
   useRealtimeRefetch("event_results", () => {
     if (user && id) fetchData();
   });
+  useRealtimeRefetch("event_bonus_challenges", () => {
+    if (user && id) fetchData();
+  });
+  useRealtimeRefetch("event_bonus_picks", () => {
+    if (user && id) fetchData();
+  });
 
   const fetchData = async () => {
     setLoadingData(true);
