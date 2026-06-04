@@ -85,6 +85,14 @@ export default function EventDetails() {
     }
     setEvent(eventData as unknown as EventData);
 
+    // Bonus challenge + picks (independent of participants)
+    const [{ data: chData }, { data: pickData }] = await Promise.all([
+      supabase.from("event_bonus_challenges").select("*").eq("event_id", id!).maybeSingle(),
+      supabase.from("event_bonus_picks").select("user_id, pick").eq("event_id", id!),
+    ]);
+    setChallenge((chData as BonusChallengeRow | null) ?? null);
+    setPicks((pickData as BonusPick[] | null) ?? []);
+
     const { data: parts } = await supabase
       .from("event_participants")
       .select("user_id")
