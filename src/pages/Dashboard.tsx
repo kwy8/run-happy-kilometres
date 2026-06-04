@@ -47,7 +47,7 @@ export default function Dashboard() {
     if (!user) return;
     setLoadingData(true);
     const today = new Date().toLocaleDateString("en-CA");
-    const promises: any[] = [
+    const [runsRes, profileRes, eventRes, orRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").eq("user_id", user.id).order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user.id).single(),
       supabase
@@ -62,13 +62,7 @@ export default function Dashboard() {
         .select("id, event_id, duration_s, distance_m, performance_score, events(title, event_date, route_distance_m)")
         .eq("user_id", user.id)
         .eq("status", "verified"),
-    ];
-    if (isAdmin) {
-      promises.push(
-        supabase.from("casual_runs").select("id, route_name, distance_m, duration_s, performance_score, created_at").eq("user_id", user.id),
-      );
-    }
-    const [runsRes, profileRes, eventRes, orRes, casualAdminRes] = await Promise.all(promises);
+    ]);
 
     const casual: Run[] = (runsRes.data || []).map((r: any) => ({
       id: r.id,
@@ -90,16 +84,7 @@ export default function Dashboard() {
         source: "official",
       };
     });
-    const casualAdmin: Run[] = (casualAdminRes?.data || []).map((r: any) => ({
-      id: `ca-${r.id}`,
-      distance_km: r.distance_m ? r.distance_m / 1000 : 0,
-      run_date: r.created_at.slice(0, 10),
-      time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : null,
-      notes: `🧪 ${r.route_name}`,
-      performance_score: r.performance_score,
-      source: "casual_admin",
-    }));
-    const merged = [...casual, ...official, ...casualAdmin].sort((a, b) =>
+    const merged = [...casual, ...official].sort((a, b) =>
       a.run_date < b.run_date ? 1 : a.run_date > b.run_date ? -1 : 0
     );
     setRuns(merged);
@@ -118,11 +103,47 @@ export default function Dashboard() {
       setHasJoined(false);
     }
     setLoadingData(false);
-  }, [user, isAdmin]);
+  }, [user]);
 
   useEffect(() => {
-    if (user?.id && !loading && !adminLoading) fetchData();
-  }, [user?.id, loading, adminLoading, fetchData]);
+    if (user?.id && !loading) fetchData();
+  }, [user?.id, loading, fetchData]);
+
+  useEffect(() => {
+    if (!user?.id || loading || adminLoading) return;
+    if (!isAdmin) {
+      setRuns((current) => current.filter((run) => run.source !== "casual_admin"));
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAdminRuns = async () => {
+      const { data } = await supabase
+        .from("casual_runs")
+        .select("id, route_name, distance_m, duration_s, performance_score, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      const casualAdmin: Run[] = (data || []).map((r: any) => ({
+        id: `ca-${r.id}`,
+        distance_km: r.distance_m ? r.distance_m / 1000 : 0,
+        run_date: r.created_at.slice(0, 10),
+        time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : null,
+        notes: `🧪 ${r.route_name}`,
+        performance_score: r.performance_score,
+        source: "casual_admin",
+      }));
+      setRuns((current) =>
+        [...current.filter((run) => run.source !== "casual_admin"), ...casualAdmin].sort((a, b) =>
+          a.run_date < b.run_date ? 1 : a.run_date > b.run_date ? -1 : 0
+        )
+      );
+    };
+    fetchAdminRuns();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loading, adminLoading, isAdmin]);
 
   useRealtimeRefetch("event_results", fetchData);
 
