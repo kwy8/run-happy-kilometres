@@ -50,6 +50,8 @@ export default function EventDetails() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [hasJoined, setHasJoined] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [challenge, setChallenge] = useState<BonusChallengeRow | null>(null);
+  const [picks, setPicks] = useState<BonusPick[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
