@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sun, Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Plus, Calendar, MapPin, Clock, Check, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR } from "@/lib/score";
 import { toast } from "sonner";
@@ -168,7 +168,7 @@ export default function Dashboard() {
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Sun className="w-8 h-8 text-primary animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-label="Loading" />
       </div>
     );
   }
