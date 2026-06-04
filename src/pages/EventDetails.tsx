@@ -15,6 +15,7 @@ import { formatRR, RR_ABBR } from "@/lib/score";
 import { buildEventIcs, downloadIcs } from "@/lib/ics";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
+import { BonusChallenge, type BonusChallengeRow, type BonusPick } from "@/components/BonusChallenge";
 
 
 interface EventData {
