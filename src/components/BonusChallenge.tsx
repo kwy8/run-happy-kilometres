@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Check, CircleDot, Sparkles, Timer, Trophy, X } from "lucide-react";
+import { Check, CircleDot, Sparkles, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 
 export interface BonusChallengeRow {
@@ -30,6 +30,34 @@ interface Props {
   challenge: BonusChallengeRow | null;
   picks: BonusPick[];
   onChange: () => void;
+}
+
+function optionDisplay(label: string) {
+  const normalized = label.trim().toLowerCase();
+  const flag =
+    normalized === "germany" ? "🇩🇪" :
+    normalized === "norway" ? "🇳🇴" :
+    null;
+
+  if (!flag) return label;
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="text-2xl leading-none" aria-hidden="true">{flag}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function lockLabel(lockAt: Date) {
+  return lockAt.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+    timeZoneName: "short",
+  });
 }
 
 export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, picks, onChange }: Props) {
@@ -184,10 +212,6 @@ export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, pi
               <CircleDot className="w-3.5 h-3.5 text-primary" />
               +{challenge.penalty_m} m
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-background/80 px-3 py-1 text-xs font-bold text-foreground shadow-sm">
-              <Timer className="w-3.5 h-3.5 text-primary" />
-              {locked ? "Locked" : lockAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
           </div>
         </div>
       </CardHeader>
@@ -230,7 +254,9 @@ export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, pi
                       <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">
                         Option {opt.toUpperCase()}
                       </span>
-                      <span className="mt-1 block text-lg font-extrabold leading-tight text-foreground">{label}</span>
+                      <span className="mt-1 block text-lg font-extrabold leading-tight text-foreground">
+                        {optionDisplay(label)}
+                      </span>
                     </span>
                     <span className={[
                       "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background",
@@ -266,7 +292,7 @@ export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, pi
               {myPick ? `You chose ${myPick === "a" ? challenge.option_a : challenge.option_b}` : "Make your pick"}
             </span>
             <span className="text-xs font-medium text-muted-foreground">
-              {locked ? "Result reveal is up to the admin." : `Locks ${lockAt.toLocaleString()}`}
+              {locked ? "Result reveal is up to the admin." : `Locks ${lockLabel(lockAt)}`}
             </span>
           </div>
         )}

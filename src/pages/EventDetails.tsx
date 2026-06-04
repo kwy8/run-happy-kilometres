@@ -269,7 +269,7 @@ export default function EventDetails() {
         </div>
 
         {(() => {
-          const lockAt = new Date(`${event.event_date}T${event.meetup_time ?? "23:59:59"}`);
+          const lockAt = new Date(`${event.event_date}T20:00:00+02:00`);
           const pickByUser = new Map(picks.map((p) => [p.user_id, p.pick]));
           return (
             <>
