@@ -149,6 +149,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
+          lock_at: string | null
           option_a: string
           option_b: string
           penalty_m: number
@@ -160,6 +161,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
+          lock_at?: string | null
           option_a: string
           option_b: string
           penalty_m?: number
@@ -171,6 +173,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
+          lock_at?: string | null
           option_a?: string
           option_b?: string
           penalty_m?: number

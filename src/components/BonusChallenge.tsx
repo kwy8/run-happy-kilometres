@@ -15,6 +15,7 @@ export interface BonusChallengeRow {
   option_b: string;
   correct_answer: "a" | "b" | null;
   penalty_m: number;
+  lock_at: string | null;
 }
 
 export interface BonusPick {

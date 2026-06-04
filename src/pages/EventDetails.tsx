@@ -269,7 +269,9 @@ export default function EventDetails() {
         </div>
 
         {(() => {
-          const lockAt = new Date(`${event.event_date}T20:00:00+02:00`);
+          const lockAt = challenge?.lock_at
+            ? new Date(challenge.lock_at)
+            : new Date(`${event.event_date}T20:00:00+02:00`);
           const pickByUser = new Map(picks.map((p) => [p.user_id, p.pick]));
           return (
             <>
