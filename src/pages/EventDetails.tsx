@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Settings } from "lucide-react";
@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sun, Calendar, MapPin, Plus, Clock, Trash2, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
-import { GpxMap } from "@/components/GpxMap";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
 import { buildEventIcs, downloadIcs } from "@/lib/ics";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { EventComments } from "@/components/EventComments";
 import { BonusChallenge, type BonusChallengeRow, type BonusPick } from "@/components/BonusChallenge";
+
+const GpxMap = lazy(() => import("@/components/GpxMap").then((module) => ({ default: module.GpxMap })));
 
 
 interface EventData {
@@ -53,68 +54,52 @@ export default function EventDetails() {
   const [challenge, setChallenge] = useState<BonusChallengeRow | null>(null);
   const [picks, setPicks] = useState<BonusPick[]>([]);
 
-  useEffect(() => {
-    if (!loading && !user) navigate("/auth");
-  }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user && id) fetchData();
-  }, [user, id]);
-
-  useRealtimeRefetch("event_results", () => {
-    if (user && id) fetchData();
-  });
-  useRealtimeRefetch("event_bonus_challenges", () => {
-    if (user && id) fetchData();
-  });
-  useRealtimeRefetch("event_bonus_picks", () => {
-    if (user && id) fetchData();
-  });
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!id || !user) return;
     setLoadingData(true);
-    const { data: eventData, error: eventErr } = await supabase
-      .from("events")
-      .select("*")
-      .eq("id", id!)
-      .maybeSingle();
+    const [eventRes, challengeRes, picksRes, partsRes, resultsRes, runsRes] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id,title,event_date,meetup_time,route,location,gpx_file_url,route_distance_m")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("event_bonus_challenges").select("*").eq("event_id", id).maybeSingle(),
+      supabase.from("event_bonus_picks").select("user_id, pick").eq("event_id", id),
+      supabase.from("event_participants").select("user_id").eq("event_id", id),
+      supabase
+        .from("event_results")
+        .select("id, user_id, duration_s, distance_m, performance_score, rpe_notes, status, source, proof_image_url")
+        .eq("event_id", id),
+      supabase
+        .from("runs")
+        .select("user_id, distance_km, time_taken_minutes")
+        .eq("event_id", id),
+    ]);
+
+    const { data: eventData, error: eventErr } = eventRes;
     if (eventErr || !eventData) {
       setEvent(null);
+      setParticipants([]);
+      setHasJoined(false);
       setLoadingData(false);
       return;
     }
     setEvent(eventData as unknown as EventData);
+    setChallenge((challengeRes.data as BonusChallengeRow | null) ?? null);
+    setPicks((picksRes.data as BonusPick[] | null) ?? []);
 
-    // Bonus challenge + picks (independent of participants)
-    const [{ data: chData }, { data: pickData }] = await Promise.all([
-      supabase.from("event_bonus_challenges").select("*").eq("event_id", id!).maybeSingle(),
-      supabase.from("event_bonus_picks").select("user_id, pick").eq("event_id", id!),
-    ]);
-    setChallenge((chData as BonusChallengeRow | null) ?? null);
-    setPicks((pickData as BonusPick[] | null) ?? []);
-
-    const { data: parts } = await supabase
-      .from("event_participants")
-      .select("user_id")
-      .eq("event_id", id!);
+    const parts = partsRes.data || [];
 
     if (parts && parts.length > 0) {
-      setHasJoined(parts.some((p) => p.user_id === user!.id));
+      setHasJoined(parts.some((p) => p.user_id === user.id));
 
       const userIds = parts.map((p) => p.user_id);
-      const [{ data: profilesData }, { data: runsData }, { data: resultsData }] = await Promise.all([
-        supabase.from("profiles").select("user_id, display_name").in("user_id", userIds),
-        supabase
-          .from("runs")
-          .select("user_id, distance_km, time_taken_minutes")
-          .eq("event_id", id!)
-          .in("user_id", userIds),
-        supabase
-          .from("event_results")
-          .select("id, user_id, duration_s, distance_m, performance_score, rpe_notes, status, source, proof_image_url")
-          .eq("event_id", id!)
-          .in("user_id", userIds),
-      ]);
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", userIds);
+      const runsData = runsRes.data || [];
+      const resultsData = resultsRes.data || [];
 
       const profileMap = new Map((profilesData || []).map((p) => [p.user_id, p.display_name]));
       const runMap = new Map<string, { distance_km: number; time_taken_minutes: number | null }>();
@@ -167,7 +152,25 @@ export default function EventDetails() {
       setHasJoined(false);
     }
     setLoadingData(false);
-  };
+  }, [id, user]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate("/auth");
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user && id) fetchData();
+  }, [user, id, fetchData]);
+
+  useRealtimeRefetch("event_results", () => {
+    if (user && id) fetchData();
+  });
+  useRealtimeRefetch("event_bonus_challenges", () => {
+    if (user && id) fetchData();
+  });
+  useRealtimeRefetch("event_bonus_picks", () => {
+    if (user && id) fetchData();
+  });
 
   const joinEvent = async () => {
     if (hasJoined) return;
@@ -241,7 +244,9 @@ export default function EventDetails() {
           <Card>
             <CardHeader><CardTitle>Route Map</CardTitle></CardHeader>
             <CardContent>
-              <GpxMap gpxUrl={event.gpx_file_url} />
+              <Suspense fallback={<div className="w-full aspect-video rounded-lg bg-muted animate-pulse" />}>
+                <GpxMap gpxUrl={event.gpx_file_url} />
+              </Suspense>
             </CardContent>
           </Card>
         )}

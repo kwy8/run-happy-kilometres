@@ -91,6 +91,14 @@ export default function Dashboard() {
     if (profileRes.data) setProfile(profileRes.data);
     if (eventRes.data) {
       setUpcomingEvent(eventRes.data);
+      setHasJoined(false);
+    } else {
+      setUpcomingEvent(null);
+      setHasJoined(false);
+    }
+    setLoadingData(false);
+
+    if (eventRes.data) {
       const { data: joinData } = await supabase
         .from("event_participants")
         .select("id")
@@ -98,11 +106,7 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .maybeSingle();
       setHasJoined(!!joinData);
-    } else {
-      setUpcomingEvent(null);
-      setHasJoined(false);
     }
-    setLoadingData(false);
   }, [user]);
 
   useEffect(() => {
