@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sun, Calendar, MapPin, Plus, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Event {
@@ -34,23 +34,23 @@ export default function Events() {
 
   const fetchEvents = async () => {
     setLoadingData(true);
-    const { data: eventsData } = await supabase
+    const [{ data: eventsData }, { data: participantRows }] = await Promise.all([
+      supabase
       .from("events")
-      .select("*");
+        .select("id, title, event_date, route, location")
+        .order("event_date", { ascending: false }),
+      supabase.from("event_participants").select("event_id"),
+    ]);
 
     if (eventsData) {
-      // Newest events first
-      const sorted = [...eventsData].sort((a, b) => b.event_date.localeCompare(a.event_date));
-
-      const withCounts = await Promise.all(
-        sorted.map(async (event) => {
-          const { count } = await supabase
-            .from("event_participants")
-            .select("*", { count: "exact", head: true })
-            .eq("event_id", event.id);
-          return { ...event, participant_count: count || 0 };
-        })
-      );
+      const counts = new Map<string, number>();
+      (participantRows || []).forEach(({ event_id }) => {
+        counts.set(event_id, (counts.get(event_id) || 0) + 1);
+      });
+      const withCounts = eventsData.map((event) => ({
+        ...event,
+        participant_count: counts.get(event.id) || 0,
+      }));
       setEvents(withCounts);
     }
     setLoadingData(false);
@@ -89,7 +89,7 @@ export default function Events() {
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Sun className="w-8 h-8 text-primary animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-label="Loading" />
       </div>
     );
   }
