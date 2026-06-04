@@ -5,7 +5,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
-import { Sun } from "lucide-react";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -26,7 +25,7 @@ const queryClient = new QueryClient();
 
 const PageFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
-    <Sun className="w-8 h-8 text-primary animate-spin" />
+    <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-label="Loading" />
   </div>
 );
 
