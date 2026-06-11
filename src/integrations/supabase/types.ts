@@ -772,6 +772,47 @@ export type Database = {
     Functions: {
       bonus_correct_answer: { Args: { _event_id: string }; Returns: string }
       event_results_published: { Args: { _event_id: string }; Returns: boolean }
+      get_event_participants: {
+        Args: { _event_id: string }
+        Returns: {
+          display_name: string
+          distance_km: number
+          performance_score: number
+          proof_image_url: string
+          result_id: string
+          rpe_notes: string
+          source: string
+          status: string
+          time_taken_minutes: number
+          user_id: string
+        }[]
+      }
+      get_events_with_participant_counts: {
+        Args: never
+        Returns: {
+          event_date: string
+          id: string
+          location: string
+          participant_count: number
+          route: string
+          title: string
+        }[]
+      }
+      get_leaderboard_summary: {
+        Args: never
+        Returns: {
+          avg_rr: number
+          avg_rr_count: number
+          best_event_date: string
+          best_event_title: string
+          best_rr: number
+          display_name: string
+          fastest_pace: number
+          total_km: number
+          total_runs: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
