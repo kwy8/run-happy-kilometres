@@ -48,7 +48,10 @@ export function EventComments({ eventId, currentUserId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  useRealtimeRefetch("event_comments", fetch);
+  useRealtimeRefetch("event_comments", fetch, {
+    filter: `event_id=eq.${eventId}`,
+    debounceMs: 300,
+  });
 
   const post = async () => {
     const trimmed = body.trim();

@@ -126,7 +126,10 @@ export default function Profile() {
     };
   }, [user?.id, loading, adminLoading, isAdmin]);
 
-  useRealtimeRefetch("event_results", fetchData);
+  useRealtimeRefetch("event_results", fetchData, {
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    debounceMs: 300,
+  });
 
   const toggleLeaderboard = async (checked: boolean) => {
     await supabase.from("profiles").update({ show_on_leaderboard: checked }).eq("user_id", user!.id);

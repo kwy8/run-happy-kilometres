@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,33 +11,31 @@ import { Sun, Medal } from "lucide-react";
 import { formatRR, RR_ABBR, RR_LABEL, RR_TOOLTIP } from "@/lib/score";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-interface OfficialResult {
+interface LeaderboardRow {
   user_id: string;
-  performance_score: number;
-  event_title: string;
-  event_date: string;
-  event_id: string;
-}
-
-interface CasualAgg {
-  user_id: string;
+  display_name: string;
+  best_rr: number | null;
+  best_event_title: string | null;
+  best_event_date: string | null;
+  avg_rr: number | null;
+  avg_rr_count: number;
   total_km: number;
   total_runs: number;
   fastest_pace: number | null;
 }
 
-interface Profile {
-  user_id: string;
-  display_name: string;
-}
-
 export default function Leaderboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [results, setResults] = useState<OfficialResult[]>([]);
-  const [casual, setCasual] = useState<CasualAgg[]>([]);
+  const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setLoadingData(true);
+    const { data } = await supabase.rpc("get_leaderboard_summary");
+    setRows((data || []) as LeaderboardRow[]);
+    setLoadingData(false);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -45,139 +43,30 @@ export default function Leaderboard() {
 
   useEffect(() => {
     if (user) fetchData();
-  }, [user]);
+  }, [user, fetchData]);
 
   useRealtimeRefetch("event_results", () => {
     if (user) fetchData();
-  });
+  }, { debounceMs: 500 });
 
-  const fetchData = async () => {
-    setLoadingData(true);
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("user_id, display_name")
-      .eq("show_on_leaderboard", true);
-
-    if (!profs || profs.length === 0) {
-      setProfiles([]);
-      setResults([]);
-      setCasual([]);
-      setLoadingData(false);
-      return;
-    }
-    const ids = profs.map((p) => p.user_id);
-    setProfiles(profs);
-
-    const [orRes, runsRes, erDistRes, casualRes] = await Promise.all([
-      supabase
-        .from("event_results")
-        .select("user_id, performance_score, event_id, events(title, event_date)")
-        .in("user_id", ids)
-        .eq("status", "verified")
-        .not("performance_score", "is", null),
-      supabase
-        .from("runs")
-        .select("user_id, distance_km, time_taken_minutes")
-        .in("user_id", ids),
-      supabase
-        .from("event_results")
-        .select("user_id, distance_m, duration_s, events(route_distance_m)")
-        .in("user_id", ids),
-      supabase
-        .from("casual_runs")
-        .select("user_id, distance_m, duration_s")
-        .in("user_id", ids),
-    ]);
-
-    setResults(
-      (orRes.data || []).map((r: any) => ({
-        user_id: r.user_id,
-        performance_score: Number(r.performance_score),
-        event_title: r.events?.title || "Event",
-        event_date: r.events?.event_date || "",
-        event_id: r.event_id,
-      }))
-    );
-
-    const aggMap = new Map<string, CasualAgg>();
-    for (const id of ids) aggMap.set(id, { user_id: id, total_km: 0, total_runs: 0, fastest_pace: null });
-    for (const r of runsRes.data || []) {
-      const a = aggMap.get(r.user_id)!;
-      a.total_km += Number(r.distance_km);
-      a.total_runs += 1;
-      if (r.time_taken_minutes && r.distance_km > 0) {
-        const pace = Number(r.time_taken_minutes) / Number(r.distance_km);
-        if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
-      }
-    }
-    for (const r of (erDistRes.data || []) as any[]) {
-      const distM = r.distance_m ?? r.events?.route_distance_m;
-      if (!distM) continue;
-      const a = aggMap.get(r.user_id)!;
-      const km = Number(distM) / 1000;
-      a.total_km += km;
-      a.total_runs += 1;
-      if (r.duration_s && km > 0) {
-        const pace = (Number(r.duration_s) / 60) / km;
-        if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
-      }
-    }
-    for (const r of casualRes.data || []) {
-      if (!r.distance_m) continue;
-      const a = aggMap.get(r.user_id)!;
-      const km = Number(r.distance_m) / 1000;
-      a.total_km += km;
-      a.total_runs += 1;
-      if (r.duration_s && km > 0) {
-        const pace = (Number(r.duration_s) / 60) / km;
-        if (a.fastest_pace == null || pace < a.fastest_pace) a.fastest_pace = pace;
-      }
-    }
-    setCasual(Array.from(aggMap.values()));
-    setLoadingData(false);
-  };
-
-  const nameOf = useMemo(() => {
-    const m = new Map<string, string>();
-    profiles.forEach((p) => m.set(p.user_id, p.display_name));
-    return (id: string) => m.get(id) || "Runner";
-  }, [profiles]);
-
-  // Best RR
   const bestRR = useMemo(() => {
-    const map = new Map<string, OfficialResult>();
-    for (const r of results) {
-      const cur = map.get(r.user_id);
-      if (!cur || r.performance_score > cur.performance_score) map.set(r.user_id, r);
-    }
-    return Array.from(map.values()).sort((a, b) => b.performance_score - a.performance_score);
-  }, [results]);
+    return [...rows]
+      .filter((row) => row.best_rr != null)
+      .sort((a, b) => (b.best_rr ?? -Infinity) - (a.best_rr ?? -Infinity));
+  }, [rows]);
 
-  // Avg RR (last 4 by event date)
   const avgRR = useMemo(() => {
-    const grouped = new Map<string, OfficialResult[]>();
-    const sorted = [...results].sort((a, b) => (a.event_date < b.event_date ? 1 : -1));
-    for (const r of sorted) {
-      const arr = grouped.get(r.user_id) || [];
-      if (arr.length < 4) arr.push(r);
-      grouped.set(r.user_id, arr);
-    }
-    const all = profiles.map((p) => {
-      const arr = grouped.get(p.user_id) || [];
-      const avg = arr.length ? arr.reduce((s, r) => s + r.performance_score, 0) / arr.length : null;
-      return { user_id: p.user_id, avg, count: arr.length };
+    return [...rows].sort((a, b) => {
+      if (a.avg_rr == null && b.avg_rr == null) return 0;
+      if (a.avg_rr == null) return 1;
+      if (b.avg_rr == null) return -1;
+      return b.avg_rr - a.avg_rr;
     });
-    return all.sort((a, b) => {
-      if (a.avg == null && b.avg == null) return 0;
-      if (a.avg == null) return 1;
-      if (b.avg == null) return -1;
-      return b.avg - a.avg;
-    });
-  }, [results, profiles]);
+  }, [rows]);
 
   const totalDistance = useMemo(
-    () => [...casual].sort((a, b) => b.total_km - a.total_km),
-    [casual]
+    () => [...rows].sort((a, b) => b.total_km - a.total_km),
+    [rows]
   );
 
   if (loading || loadingData) {
@@ -202,7 +91,7 @@ export default function Leaderboard() {
           </p>
         </div>
 
-        {profiles.length === 0 ? (
+        {rows.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               No runners on the leaderboard yet. Toggle visibility on your Profile!
@@ -230,13 +119,13 @@ export default function Leaderboard() {
                       <TableHead>Date</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                      {bestRR.map((r, i) => (
-                        <TableRow key={r.user_id} className={i < 3 ? "bg-primary/5" : ""}>
+                      {bestRR.map((row, i) => (
+                        <TableRow key={row.user_id} className={i < 3 ? "bg-primary/5" : ""}>
                           <TableCell><Rank i={i} /></TableCell>
-                          <TableCell className="font-medium">{nameOf(r.user_id)}</TableCell>
-                          <TableCell className="text-right font-bold">{formatRR(r.performance_score)}</TableCell>
-                          <TableCell className="text-muted-foreground">{r.event_title}</TableCell>
-                          <TableCell className="text-muted-foreground">{r.event_date ? new Date(r.event_date).toLocaleDateString() : "—"}</TableCell>
+                          <TableCell className="font-medium">{row.display_name}</TableCell>
+                          <TableCell className="text-right font-bold">{formatRR(row.best_rr)}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.best_event_title || "Event"}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.best_event_date ? new Date(row.best_event_date).toLocaleDateString() : "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -255,12 +144,12 @@ export default function Leaderboard() {
                     <TableHead className="text-right">Results</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {avgRR.map((r, i) => (
-                      <TableRow key={r.user_id} className={r.avg != null && i < 3 ? "bg-primary/5" : ""}>
-                        <TableCell><Rank i={i} faded={r.avg == null} /></TableCell>
-                        <TableCell className="font-medium">{nameOf(r.user_id)}</TableCell>
-                        <TableCell className="text-right font-bold">{r.avg != null ? formatRR(r.avg) : "—"}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{r.count}</TableCell>
+                    {avgRR.map((row, i) => (
+                      <TableRow key={row.user_id} className={row.avg_rr != null && i < 3 ? "bg-primary/5" : ""}>
+                        <TableCell><Rank i={i} faded={row.avg_rr == null} /></TableCell>
+                        <TableCell className="font-medium">{row.display_name}</TableCell>
+                        <TableCell className="text-right font-bold">{row.avg_rr != null ? formatRR(row.avg_rr) : "—"}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{row.avg_rr_count}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -279,13 +168,13 @@ export default function Leaderboard() {
                     <TableHead className="text-right">Fastest Pace</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {totalDistance.map((r, i) => (
-                      <TableRow key={r.user_id} className={i < 3 && r.total_km > 0 ? "bg-primary/5" : ""}>
-                        <TableCell><Rank i={i} faded={r.total_km === 0} /></TableCell>
-                        <TableCell className="font-medium">{nameOf(r.user_id)}</TableCell>
-                        <TableCell className="text-right font-bold">{r.total_km.toFixed(3)} km</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{r.total_runs}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{r.fastest_pace ? `${r.fastest_pace.toFixed(1)} min/km` : "—"}</TableCell>
+                    {totalDistance.map((row, i) => (
+                      <TableRow key={row.user_id} className={i < 3 && row.total_km > 0 ? "bg-primary/5" : ""}>
+                        <TableCell><Rank i={i} faded={row.total_km === 0} /></TableCell>
+                        <TableCell className="font-medium">{row.display_name}</TableCell>
+                        <TableCell className="text-right font-bold">{row.total_km.toFixed(3)} km</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{row.total_runs}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{row.fastest_pace ? `${row.fastest_pace.toFixed(1)} min/km` : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

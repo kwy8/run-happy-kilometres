@@ -63,6 +63,9 @@ export default function EventTiming() {
 
   useRealtimeRefetch("event_results", () => {
     if (user && isAdmin && eventId) fetchData();
+  }, {
+    filter: eventId ? `event_id=eq.${eventId}` : undefined,
+    debounceMs: 300,
   });
 
   const fetchData = async () => {

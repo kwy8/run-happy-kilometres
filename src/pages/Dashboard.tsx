@@ -149,7 +149,10 @@ export default function Dashboard() {
     };
   }, [user?.id, loading, adminLoading, isAdmin]);
 
-  useRealtimeRefetch("event_results", fetchData);
+  useRealtimeRefetch("event_results", fetchData, {
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    debounceMs: 300,
+  });
 
 
   const joinEvent = async () => {
