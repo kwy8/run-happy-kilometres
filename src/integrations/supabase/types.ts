@@ -770,6 +770,7 @@ export type Database = {
       }
     }
     Functions: {
+      bonus_correct_answer: { Args: { _event_id: string }; Returns: string }
       event_results_published: { Args: { _event_id: string }; Returns: boolean }
       has_role: {
         Args: {
