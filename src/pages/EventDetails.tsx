@@ -79,9 +79,84 @@ export default function EventDetails() {
     setEvent(eventData as unknown as EventData);
     setChallenge((challengeRes.data as BonusChallengeRow | null) ?? null);
     setPicks((picksRes.data as BonusPick[] | null) ?? []);
-    const participantRows = (participantsRes.data || []) as Participant[];
-    setParticipants(participantRows);
-    setHasJoined(participantRows.some((p) => p.user_id === user.id));
+    if (!participantsRes.error) {
+      const participantRows = (participantsRes.data || []) as Participant[];
+      setParticipants(participantRows);
+      setHasJoined(participantRows.some((p) => p.user_id === user.id));
+      setLoadingData(false);
+      return;
+    }
+
+    const [partsRes, resultsRes, runsRes] = await Promise.all([
+      supabase.from("event_participants").select("user_id").eq("event_id", id),
+      supabase
+        .from("event_results")
+        .select("id, user_id, duration_s, distance_m, performance_score, rpe_notes, status, source, proof_image_url")
+        .eq("event_id", id),
+      supabase
+        .from("runs")
+        .select("user_id, distance_km, time_taken_minutes")
+        .eq("event_id", id),
+    ]);
+
+    const parts = partsRes.data || [];
+    if (parts.length === 0) {
+      setParticipants([]);
+      setHasJoined(false);
+      setLoadingData(false);
+      return;
+    }
+
+    const userIds = parts.map((p) => p.user_id);
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds);
+    const profileMap = new Map((profilesData || []).map((p) => [p.user_id, p.display_name]));
+    const runMap = new Map<string, { distance_km: number; time_taken_minutes: number | null }>();
+    (runsRes.data || []).forEach((r) => {
+      const existing = runMap.get(r.user_id);
+      if (!existing || r.distance_km > existing.distance_km) {
+        runMap.set(r.user_id, { distance_km: r.distance_km, time_taken_minutes: r.time_taken_minutes });
+      }
+    });
+
+    const officialMap = new Map<string, Participant>();
+    const eventDistanceKm = eventData.route_distance_m ? eventData.route_distance_m / 1000 : undefined;
+    (resultsRes.data || []).forEach((r: any) => {
+      officialMap.set(r.user_id, {
+        user_id: r.user_id,
+        display_name: profileMap.get(r.user_id) || "Runner",
+        distance_km: r.distance_m ? r.distance_m / 1000 : eventDistanceKm,
+        time_taken_minutes: r.duration_s != null ? r.duration_s / 60 : undefined,
+        performance_score: r.status === "verified" ? r.performance_score : null,
+        rpe_notes: r.rpe_notes,
+        result_id: r.id,
+        source: r.source,
+        status: r.status,
+        proof_image_url: r.proof_image_url,
+      });
+    });
+
+    const enriched: Participant[] = parts.map((p) => {
+      const official = officialMap.get(p.user_id);
+      const casual = runMap.get(p.user_id);
+      return {
+        user_id: p.user_id,
+        display_name: profileMap.get(p.user_id) || "Runner",
+        distance_km: official?.distance_km ?? casual?.distance_km,
+        time_taken_minutes: official?.time_taken_minutes ?? casual?.time_taken_minutes ?? undefined,
+        performance_score: official?.performance_score ?? null,
+        rpe_notes: official?.rpe_notes ?? null,
+        result_id: official?.result_id ?? null,
+        source: official?.source ?? null,
+        status: official?.status ?? null,
+        proof_image_url: official?.proof_image_url ?? null,
+      };
+    });
+    enriched.sort((a, b) => (a.time_taken_minutes ?? Infinity) - (b.time_taken_minutes ?? Infinity));
+    setParticipants(enriched);
+    setHasJoined(enriched.some((p) => p.user_id === user.id));
     setLoadingData(false);
   }, [id, user]);
 

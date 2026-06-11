@@ -34,10 +34,33 @@ export default function Events() {
 
   const fetchEvents = async () => {
     setLoadingData(true);
-    const { data: eventsData } = await supabase.rpc("get_events_with_participant_counts");
+    const { data: eventsData, error } = await supabase.rpc("get_events_with_participant_counts");
 
-    if (eventsData) {
+    if (!error && eventsData) {
       setEvents(eventsData);
+      setLoadingData(false);
+      return;
+    }
+
+    const [{ data: fallbackEvents }, { data: participantRows }] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, title, event_date, route, location")
+        .order("event_date", { ascending: false }),
+      supabase.from("event_participants").select("event_id"),
+    ]);
+
+    if (fallbackEvents) {
+      const counts = new Map<string, number>();
+      (participantRows || []).forEach(({ event_id }) => {
+        counts.set(event_id, (counts.get(event_id) || 0) + 1);
+      });
+      setEvents(
+        fallbackEvents.map((event) => ({
+          ...event,
+          participant_count: counts.get(event.id) || 0,
+        }))
+      );
     }
     setLoadingData(false);
   };
