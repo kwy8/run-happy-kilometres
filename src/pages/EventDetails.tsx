@@ -57,15 +57,20 @@ export default function EventDetails() {
   const fetchData = useCallback(async () => {
     if (!id || !user) return;
     setLoadingData(true);
-    const [eventRes, challengeRes, picksRes, participantsRes] = await Promise.all([
+    const [eventRes, challengeRes, picksRes, participantsRes, correctRes] = await Promise.all([
       supabase
         .from("events")
         .select("id,title,event_date,meetup_time,route,location,gpx_file_url,route_distance_m")
         .eq("id", id)
         .maybeSingle(),
-      supabase.from("event_bonus_challenges").select("*").eq("event_id", id).maybeSingle(),
+      supabase
+        .from("event_bonus_challenges")
+        .select("id, event_id, question, option_a, option_b, penalty_m, created_at, updated_at")
+        .eq("event_id", id)
+        .maybeSingle(),
       supabase.from("event_bonus_picks").select("user_id, pick").eq("event_id", id),
       supabase.rpc("get_event_participants", { _event_id: id }),
+      supabase.rpc("bonus_correct_answer", { _event_id: id }),
     ]);
 
     const { data: eventData, error: eventErr } = eventRes;
@@ -77,7 +82,9 @@ export default function EventDetails() {
       return;
     }
     setEvent(eventData as unknown as EventData);
-    setChallenge((challengeRes.data as BonusChallengeRow | null) ?? null);
+    const baseChallenge = challengeRes.data as Omit<BonusChallengeRow, "correct_answer"> | null;
+    const correctAns = (correctRes.data as "a" | "b" | null) ?? null;
+    setChallenge(baseChallenge ? { ...baseChallenge, correct_answer: correctAns } : null);
     setPicks((picksRes.data as BonusPick[] | null) ?? []);
     if (!participantsRes.error) {
       const participantRows = (participantsRes.data || []) as Participant[];
@@ -275,9 +282,7 @@ export default function EventDetails() {
         </div>
 
         {(() => {
-          const lockAt = challenge?.lock_at
-            ? new Date(challenge.lock_at)
-            : new Date(`${event.event_date}T20:00:00+02:00`);
+          const lockAt = new Date(`${event.event_date}T${(event.meetup_time || "20:00:00").slice(0,8)}+02:00`);
           const pickByUser = new Map(picks.map((p) => [p.user_id, p.pick]));
           return (
             <>
