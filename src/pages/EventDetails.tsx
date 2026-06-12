@@ -275,9 +275,14 @@ export default function EventDetails() {
             <Button onClick={joinEvent}>Join Event</Button>
           )}
           {isAdmin && (
-            <Link to={`/admin/events/${id}/timing`}>
-              <Button variant="outline"><Settings className="w-4 h-4 mr-1" /> Timing & Results</Button>
-            </Link>
+            <>
+              <Link to={`/admin/events/${id}/edit`}>
+                <Button variant="outline"><Pencil className="w-4 h-4 mr-1" /> Edit Event</Button>
+              </Link>
+              <Link to={`/admin/events/${id}/timing`}>
+                <Button variant="outline"><Settings className="w-4 h-4 mr-1" /> Timing & Results</Button>
+              </Link>
+            </>
           )}
         </div>
 
