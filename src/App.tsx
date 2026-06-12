@@ -51,6 +51,7 @@ const App = () => (
               <Route path="/admin/calibration" element={<AdminCalibration />} />
               <Route path="/admin/casual-runs" element={<AdminCasualRuns />} />
               <Route path="/admin/create-event" element={<CreateEvent />} />
+              <Route path="/admin/events/:eventId/edit" element={<CreateEvent />} />
               <Route path="/admin/events/:eventId/timing" element={<EventTiming />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
