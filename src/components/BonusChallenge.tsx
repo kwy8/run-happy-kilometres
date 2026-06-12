@@ -152,7 +152,7 @@ export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, pi
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              Matchday Challenge
+              Bonus Challenge
             </CardTitle>
             <span className="rounded-full bg-background/80 px-3 py-1 text-xs font-bold text-primary shadow-sm">
               Bonus game
@@ -199,7 +199,7 @@ export function BonusChallenge({ eventId, userId, isAdmin, lockAt, challenge, pi
                 <Trophy className="w-4 h-4" />
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-primary">Matchday Challenge</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">Bonus Challenge</p>
                 <CardTitle className="text-xl leading-tight">Pick your side</CardTitle>
               </div>
             </div>

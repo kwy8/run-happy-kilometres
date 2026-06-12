@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GpxMapProps {
   gpxUrl: string;
@@ -9,9 +10,11 @@ interface GpxMapProps {
 function parseGpx(xmlString: string): { coords: [number, number][]; distanceKm: number } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, "application/xml");
+  if (doc.querySelector("parsererror")) return { coords: [], distanceKm: 0 };
   const trkpts = doc.querySelectorAll("trkpt");
   const rtepts = doc.querySelectorAll("rtept");
-  const points = trkpts.length > 0 ? trkpts : rtepts;
+  const wpts = doc.querySelectorAll("wpt");
+  const points = trkpts.length > 0 ? trkpts : rtepts.length > 0 ? rtepts : wpts;
 
   const coords: [number, number][] = [];
   let distanceKm = 0;
@@ -19,10 +22,11 @@ function parseGpx(xmlString: string): { coords: [number, number][]; distanceKm: 
   points.forEach((pt, i) => {
     const lat = parseFloat(pt.getAttribute("lat") || "0");
     const lon = parseFloat(pt.getAttribute("lon") || "0");
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
     coords.push([lat, lon]);
 
-    if (i > 0) {
-      const [prevLat, prevLon] = coords[i - 1];
+    if (coords.length > 1) {
+      const [prevLat, prevLon] = coords[coords.length - 2];
       distanceKm += haversine(prevLat, prevLon, lat, lon);
     }
   });
@@ -40,6 +44,34 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function storagePathFromPublicUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const marker = "/storage/v1/object/public/gpx-files/";
+    const index = parsed.pathname.indexOf(marker);
+    if (index === -1) return null;
+    return decodeURIComponent(parsed.pathname.slice(index + marker.length));
+  } catch {
+    return null;
+  }
+}
+
+async function loadGpxText(gpxUrl: string): Promise<string> {
+  try {
+    const res = await fetch(gpxUrl);
+    if (res.ok) return res.text();
+  } catch {
+    // Fall through to authenticated Storage download.
+  }
+
+  const storagePath = storagePathFromPublicUrl(gpxUrl);
+  if (!storagePath) throw new Error("Failed to fetch GPX");
+
+  const { data, error } = await supabase.storage.from("gpx-files").download(storagePath);
+  if (error || !data) throw new Error(error?.message || "Failed to download GPX");
+  return data.text();
+}
+
 export function GpxMap({ gpxUrl }: GpxMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -48,6 +80,9 @@ export function GpxMap({ gpxUrl }: GpxMapProps) {
 
   useEffect(() => {
     if (!mapRef.current) return;
+    let cancelled = false;
+    setError(false);
+    setDistance(null);
 
     const map = L.map(mapRef.current);
     mapInstance.current = map;
@@ -56,12 +91,9 @@ export function GpxMap({ gpxUrl }: GpxMapProps) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    fetch(gpxUrl)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch GPX");
-        return res.text();
-      })
+    loadGpxText(gpxUrl)
       .then((text) => {
+        if (cancelled) return;
         const { coords, distanceKm } = parseGpx(text);
         if (coords.length === 0) {
           setError(true);
@@ -84,9 +116,12 @@ export function GpxMap({ gpxUrl }: GpxMapProps) {
             .addTo(map);
         }
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
 
     return () => {
+      cancelled = true;
       map.remove();
       mapInstance.current = null;
     };
