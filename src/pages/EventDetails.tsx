@@ -7,7 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sun, Calendar, MapPin, Plus, Clock, Trash2, CalendarPlus } from "lucide-react";
+import { Sun, Calendar, MapPin, Plus, Clock, Trash2, CalendarPlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatMinSec, formatPace } from "@/lib/time";
 import { formatRR, RR_ABBR } from "@/lib/score";
@@ -275,9 +275,14 @@ export default function EventDetails() {
             <Button onClick={joinEvent}>Join Event</Button>
           )}
           {isAdmin && (
-            <Link to={`/admin/events/${id}/timing`}>
-              <Button variant="outline"><Settings className="w-4 h-4 mr-1" /> Timing & Results</Button>
-            </Link>
+            <>
+              <Link to={`/admin/events/${id}/edit`}>
+                <Button variant="outline"><Pencil className="w-4 h-4 mr-1" /> Edit Event</Button>
+              </Link>
+              <Link to={`/admin/events/${id}/timing`}>
+                <Button variant="outline"><Settings className="w-4 h-4 mr-1" /> Timing & Results</Button>
+              </Link>
+            </>
           )}
         </div>
 
