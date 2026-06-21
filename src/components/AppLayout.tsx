@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, Shield } from "lucide-react";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.webp";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, signOut } = useAuth();
@@ -31,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-4 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
-              <img src={logo} alt="Happy Kilometres" className="w-8 h-8 shrink-0" />
+              <img src={logo} alt="Happy Kilometres" width={32} height={32} className="w-8 h-8 shrink-0" loading="eager" decoding="async" />
               <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">Happy Kilometres</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1 ml-4">
