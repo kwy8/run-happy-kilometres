@@ -47,6 +47,9 @@ export default function Dashboard() {
     if (!user) return;
     setLoadingData(true);
     const today = new Date().toLocaleDateString("en-CA");
+
+    // Step 1: fetch the upcoming event id first (needed for the join check),
+    // in parallel with everything that doesn't depend on it.
     const [runsRes, profileRes, eventRes, orRes] = await Promise.all([
       supabase.from("runs").select("id, distance_km, run_date, time_taken_minutes, notes").eq("user_id", user.id).order("run_date", { ascending: false }),
       supabase.from("profiles").select("display_name, show_on_leaderboard").eq("user_id", user.id).single(),
@@ -63,6 +66,16 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .eq("status", "verified"),
     ]);
+
+    // Step 2: now that we have the event id, fire the join check in parallel with state updates.
+    const joinPromise = eventRes.data
+      ? supabase
+          .from("event_participants")
+          .select("id")
+          .eq("event_id", eventRes.data.id)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null } as { data: { id: string } | null });
 
     const casual: Run[] = (runsRes.data || []).map((r: any) => ({
       id: r.id,
@@ -89,24 +102,11 @@ export default function Dashboard() {
     );
     setRuns(merged);
     if (profileRes.data) setProfile(profileRes.data);
-    if (eventRes.data) {
-      setUpcomingEvent(eventRes.data);
-      setHasJoined(false);
-    } else {
-      setUpcomingEvent(null);
-      setHasJoined(false);
-    }
-    setLoadingData(false);
+    setUpcomingEvent(eventRes.data ?? null);
 
-    if (eventRes.data) {
-      const { data: joinData } = await supabase
-        .from("event_participants")
-        .select("id")
-        .eq("event_id", eventRes.data.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setHasJoined(!!joinData);
-    }
+    const joinRes = await joinPromise;
+    setHasJoined(!!joinRes.data);
+    setLoadingData(false);
   }, [user]);
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function Dashboard() {
 
   useRealtimeRefetch("event_results", fetchData, {
     filter: user?.id ? `user_id=eq.${user.id}` : undefined,
-    debounceMs: 300,
+    debounceMs: 1500,
   });
 
 
